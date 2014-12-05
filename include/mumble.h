@@ -1,11 +1,13 @@
 #pragma once
 
+#include <stdint.h>
+
 #include "connection.h"
 
 typedef struct mumble
 {
 	int num_connections;
-	mumble_connection_t connection;
+	mumble_connection_t* connections;
 } mumble_t;
 
 /// Initialize a new mumble context.
@@ -14,4 +16,4 @@ typedef struct mumble
 int mumble_init(mumble_t* context);
 
 /// Connect to a remote host.
-int mumble_connect(const mumble_t* context, const char* host, short port);
+int mumble_connect(mumble_t* context, const char* host, uint32_t port);

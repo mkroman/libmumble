@@ -2,8 +2,10 @@
 
 int mumble_connection_init(mumble_connection_t* connection)
 {
+	return 0;
 }
 
 int mumble_connection_new(mumble_connection_t* connection)
 {
+	return 0;
 }

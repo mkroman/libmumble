@@ -1,13 +1,16 @@
 #pragma once
 
+#include "stdint.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 typedef struct mumble_connection
 {
-	char* host;
-	short port;
+	const char* host;
+	uint32_t port;
+	mumble_connection* next;
 } mumble_connection_t;
 
 #ifdef __cplusplus
