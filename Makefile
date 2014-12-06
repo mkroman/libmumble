@@ -1,15 +1,18 @@
+# Installation prefix.
 ifdef PREFIX
 	PREFIX=/usr
 endif
 
-CFLAGS+=-Wall -Werror -pedantic -std=c99 -I./include
+# Compiler flags.
+CFLAGS += -Wall -Werror -pedantic -std=c99 -Iinclude
 
-VERSION=$(shell git describe --tags --abbrev=0)
-GIT_VERSION:="$(shell git describe --tags --always) ($(shell git log --pretty=format:%cd --date=short -n1))"
-OS:=$(shell uname)
+# Provide definitions for current library version.
+VERSION = $(shell git describe --tags --abbrev=0)
+GIT_VERSION := "$(shell git describe --tags --always) ($(shell git log --pretty=format:%cd --date=short -n1))"
+OS := $(shell uname)
 
 ifeq ($(OS),Linux)
-	CFLAGS+=-DLINUX
+	CFLAGS += -DLINUX
 endif
 
 V ?= 0
@@ -18,25 +21,28 @@ ifeq ($(V),0)
 .SILENT:
 endif
 
-CFLAGS+=-DVERSION=\"${GIT_VERSION}\"
+CFLAGS += -DVERSION=\"${GIT_VERSION}\"
 
-OBJS:=$(wildcard src/*.c)
-OBJS:=$(OBJS:.c=.o)
+OBJS := $(wildcard src/*.c)
+OBJS := $(OBJS:.c=.o)
 
-src/%.o: src/%.c src/Mumble.pb-c.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+src/%.o: src/%.c
 	@echo " CC $<"
+	$(CC) $(CFLAGS) -c -o $@ $<
 
-src/Mumble.pb-c.c:
-	 protoc-c --c_out=. src/Mumble.proto
+src/Mumble.o: proto/Mumble.pb-c.c
+	@echo " CC $<"
+	$(CC) -c $< -I. -lprotobuf-c -o $@
+
+proto/Mumble.pb-c.c:
+	@echo " PROTOC $<"
+	protoc-c --c_out=. proto/Mumble.proto
 
 client: ${OBJS}
 	@echo " LD $@"
 	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
 
-static: ${OBJS}
-	@echo " LD $@"
-	$(CC) $(LDFLAGS) -static -o client $^ $(LIBS)
+default: client
 
 clean:
 	rm -f src/*.o
