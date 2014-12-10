@@ -26,24 +26,32 @@
 #pragma once
 
 #include <stdint.h>
-#include <arpa/inet.h>
-#include <sys/socket.h>
+
+#if defined(_WIN32)
+# include <WinSock2.h>
+# include <Windows.h>
+#elif defined(__unix__)
+# include <arpa/inet.h>
+# include <sys/socket.h>
+#endif
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/**
- * @brief The client-to-server connection struct.
- */
-typedef struct mumble_connection_t
-{
-	const char* host;
-	uint32_t port;
-	int fd;
-	struct sockaddr_storage addr;
-	struct mumble_connection_t* next;
-} mumble_connection_t;
+	/**
+	 * @brief The client-to-server connection struct.
+	 */
+	typedef struct mumble_connection_t
+	{
+		const char* host;
+		uint32_t port;
+		int fd;
+#ifdef __linux__
+		struct sockaddr_storage addr;
+#endif
+		struct mumble_connection_t* next;
+	} mumble_connection_t;
 
 #ifdef __cplusplus
 }

@@ -16,14 +16,28 @@
 * License along with this library.
 */
 
-#include "connection.h"
+/**
+* @file server.h
+* @author Mikkel Kroman
+* @date 10 Dec 2014
+* @brief Connection-related functions for the mumble context.
+*/
 
-int mumble_connection_init( mumble_connection_t* connection )
-{
-	return 0;
-}
+#pragma once
 
-int mumble_connection_new( mumble_connection_t* connection )
+#include <stdint.h>
+
+#if defined(_WIN32)
+#  include <winsock2.h>
+#  include <windows.h>
+#elif defined(__unix__)
+#  include <arpa/inet.h>
+#  include <sys/socket.h>
+#endif
+
+typedef struct mumble_server
 {
-	return 0;
-}
+	const char* host;
+	uint32_t port;
+	struct mumble_server* next;
+} mumble_server_t;
