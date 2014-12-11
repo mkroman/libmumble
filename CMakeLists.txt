@@ -4,7 +4,7 @@ cmake_minimum_required (VERSION 2.8)
 include_directories (include/)
 
 if (WIN32)
-  add_definitions (-DWIN32 -DUNICODE)
+  add_definitions (-DWIN32 -D__WINDOWS__ -DUNICODE)
 else ()
   add_definitions (-DUNIX)
 endif ()
@@ -12,16 +12,23 @@ endif ()
 set (libmumble_SOURCE
   src/mumble.c
   src/server.c
-  src/connection.c
 )
 
 set (libmumble_HEADERS
   include/mumble.h
-  include/server.h
-  include/connection.h)
+  include/server.h)
 
 set (client_SOURCES
   src/client.c)
+
+# Find OpenSSL.
+find_package (OpenSSL)
+
+# Link against OpenSSL.
+set (${PROJECT_NAME}_OPENSSL_LIBS ${OPENSSL_SSL_LIBRARY})
+
+# Include OpenSSL.
+include_directories (${OPENSSL_INCLUDE_DIR})
 
 # Find the protoc-c executable.
 find_program (PROTOBUF_C_PROTOC_EXECUTABLE
@@ -57,5 +64,5 @@ add_library (${PROJECT_NAME} STATIC
 
 add_executable (client ${client_SOURCES})
 
-target_link_libraries (${PROJECT_NAME} ${PROTOC_C_LIBRARY})
+target_link_libraries (${PROJECT_NAME} ${PROTOC_C_LIBRARY} ${${PROJECT_NAME}_OPENSSL_LIBS})
 target_link_libraries (client ${PROJECT_NAME})

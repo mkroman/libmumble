@@ -26,7 +26,7 @@ int main( int argc, char** argv )
 	( void )argv;
 
 	mumble_init( &g_mumble );
-	mumble_connect( &g_mumble, "s.uplink.io", 64738 );
+	mumble_connect( &g_mumble, "static.uplink.io", 64738 );
 
 	return 0;
 }

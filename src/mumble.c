@@ -16,6 +16,7 @@
 * License along with this library.
 */
 
+#include <stdio.h>
 #include <stdlib.h>
 
 #include "mumble.h"
@@ -23,8 +24,24 @@
 
 int mumble_init( mumble_t* context )
 {
+#if defined(__WINDOWS__)
+	int result;
+	WSADATA wsaData;
+#endif
+
 	context->servers = 0;
 	context->num_servers = 0;
+
+#if defined(__WINDOWS__)
+	result = WSAStartup( MAKEWORD( 2, 2 ), &wsaData );
+
+	if ( result != 0 )
+	{
+		fprintf( stderr, "mumble_init: Failed to initialize winsock\n" );
+
+		return 1;
+	}
+#endif
 
 	return 0;
 }
@@ -43,6 +60,9 @@ int mumble_connect( mumble_t* context, const char* host, uint32_t port )
 
 	context->servers = srv;
 	context->num_servers++;
+
+	if ( mumble_server_connect( srv ) != 0 )
+		return 1;
 
 	return 0;
 }

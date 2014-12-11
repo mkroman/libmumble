@@ -27,17 +27,32 @@
 
 #include <stdint.h>
 
-#if defined(_WIN32)
+#ifdef __WINDOWS__
 #  include <winsock2.h>
+#  include <ws2tcpip.h>
 #  include <windows.h>
+
+#  pragma comment(lib, "Ws2_32.lib")
 #elif defined(__unix__)
 #  include <arpa/inet.h>
 #  include <sys/socket.h>
 #endif
 
-typedef struct mumble_server
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/**
+	*/
+typedef struct
 {
 	const char* host;
 	uint32_t port;
-	struct mumble_server* next;
+	struct mumble_server_t* next;
 } mumble_server_t;
+
+int mumble_server_connect( mumble_server_t* server );
+
+#ifdef __cplusplus
+}
+#endif

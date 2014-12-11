@@ -16,22 +16,52 @@
 * License along with this library.
 */
 
+/**
+* @file mumble.h
+* @author Mikkel Kroman
+* @date 11 Dec 2014
+* @brief Client-related functions for the mumble client context.
+*/
+
 #pragma once
 
 #include <stdint.h>
 
 #include "server.h"
 
-typedef struct mumble
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/**
+ * The mumble client structure, also referenced as the `context`.
+ */
+typedef struct
 {
 	int num_servers;
 	mumble_server_t* servers;
 } mumble_t;
 
-/// Initialize a new mumble context.
-/// 
-/// \returns non-zero on failure, zero on success.
+/**
+ * Initialize a new mumble client context.
+ *
+ * @param context a pointer to allocated memory large enough to hold mumble_t.
+ *
+ * @returns zero on success, non-zero otherwise.
+ */
 int mumble_init( mumble_t* context );
 
-/// Connect to a remote host.
+/**
+ * @brief Connect to a mumble server.
+ *
+ * @param context the initialized mumble client.
+ * @param host    the hostname or address of the remote host.
+ * @param port    the port of the remote host.
+ *
+ * @returns zero on success, non-zero otherwise.
+ */
 int mumble_connect( mumble_t* context, const char* host, uint32_t port );
+
+#ifdef __cplusplus
+}
+#endif

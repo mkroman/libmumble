@@ -8,3 +8,4 @@ proto/Mumble.pb-c.h
 proto/Mumble.pb-c.c
 
 Build/
+docs/
