@@ -1,44 +1,54 @@
-#include <netdb.h>
 #include <stdio.h>
 #include "server.h"
 
-int mumble_server_connect( mumble_server_t* server )
+int
+mumble_server_connect(mumble_server_t* server)
+{
+
+}
+
+int
+mumble_server_get_addr(mumble_server_t* server, struct sockaddr_storage* addr)
 {
 	int result;
-	struct addrinfo *addressInfo, addressHints;
-	char portBuffer[ 6 ];
+	struct addrinfo *address, hints;
+	char port_buffer[6];
 
 #ifdef _WIN32
-	if ( _itoa_s( server->port, portBuffer, sizeof portBuffer, 10 ) != 0 )
+	if (_itoa_s(server->port, port_buffer, sizeof port_buffer, 10) != 0)
 #else
-	if ( snprintf( portBuffer, sizeof portBuffer, "%u", server->port ) < 0 )
+	if (snprintf(port_buffer, sizeof port_buffer, "%u", server->port) < 0)
 #endif
 	{
-		fprintf( stderr, "mumble_server_connect: could not convert port to number\n" );
+		fprintf(stderr, "mumble_server_connect: could not convert port to number\n");
 
 		return 1;
 	}
 
-	memset( &addressHints, 0, sizeof addressHints );
-	addressHints.ai_family = AF_UNSPEC;
-	addressHints.ai_protocol = IPPROTO_TCP;
-	addressHints.ai_socktype = SOCK_STREAM;
+	memset(&hints, 0, sizeof hints);
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_protocol = IPPROTO_TCP;
+	hints.ai_socktype = SOCK_STREAM;
 
-	result = getaddrinfo( server->host, portBuffer, &addressHints, &addressInfo );
+	result = getaddrinfo(server->host, port_buffer, &hints, &address);
 
-	if ( result != 0 )
+	if (result != 0)
 	{
-		fprintf( stderr, "mumble_server_connect: %d\n", result );
+		fprintf(stderr, "mumble_server_connect: %s\n", gai_strerror(result));
 
 		return 1;
 	}
 	else
 	{
-		char addressBuffer[ 128 ];
+		char buffer[INET6_ADDRSTRLEN];
 
-		for ( struct addrinfo* ptr = addressInfo; ptr != NULL; ptr = ptr->ai_next )
+		for (struct addrinfo* ptr = address; ptr != NULL; ptr = ptr->ai_next)
 		{
-			printf( "mumble_server_connect: host: %s", inet_ntop( AF_INET, &( ( struct sockaddr_in* )ptr->ai_addr )->sin_addr, addressBuffer, sizeof addressBuffer ) );
+			printf("mumble_server_connect: host: %s",
+				   inet_ntop(AF_INET,
+							 &((struct sockaddr_in*)ptr->ai_addr)->sin_addr,
+							 buffer,
+							 sizeof buffer));
 		}
 	}
 

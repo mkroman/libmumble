@@ -49,7 +49,7 @@ typedef struct
  *
  * @returns zero on success, non-zero otherwise.
  */
-int mumble_init( mumble_t* context );
+int mumble_init(mumble_t* context);
 
 /**
  * @brief Connect to a mumble server.
@@ -60,7 +60,7 @@ int mumble_init( mumble_t* context );
  *
  * @returns zero on success, non-zero otherwise.
  */
-int mumble_connect( mumble_t* context, const char* host, uint32_t port );
+int mumble_connect(mumble_t* context, const char* host, uint32_t port);
 
 #ifdef __cplusplus
 }

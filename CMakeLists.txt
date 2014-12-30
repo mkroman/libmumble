@@ -1,7 +1,7 @@
 project (libmumble)
 cmake_minimum_required (VERSION 2.8)
 
-set (CMAKE_C_FLAGS ${CMAKE_C_FLAGS} "-std=c99")
+set (CMAKE_C_FLAGS ${CMAKE_C_FLAGS} "-std=gnu99")
 set (CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 
 include_directories (include/)
@@ -60,7 +60,8 @@ add_custom_command (
 set_source_files_properties (
   ${CMAKE_CURRENT_BINARY_DIR}/Mumble.pb-c.c
   ${CMAKE_CURRENT_BINARY_DIR}/Mumble.pb-c.h
-  PROPERTIES GENERATED TRUE)
+  PROPERTIES
+    GENERATED TRUE)
 
 # Find the protobuf-c library.
 find_library (PROTOC_C_LIBRARY

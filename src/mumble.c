@@ -22,7 +22,7 @@
 #include "mumble.h"
 #include "server.h"
 
-int mumble_init( mumble_t* context )
+int mumble_init(mumble_t* context)
 {
 #if defined(__WINDOWS__)
 	int result;
@@ -33,11 +33,11 @@ int mumble_init( mumble_t* context )
 	context->num_servers = 0;
 
 #if defined(__WINDOWS__)
-	result = WSAStartup( MAKEWORD( 2, 2 ), &wsaData );
+	result = WSAStartup(MAKEWORD(2, 2), &wsaData);
 
-	if ( result != 0 )
+	if (result != 0)
 	{
-		fprintf( stderr, "mumble_init: Failed to initialize winsock\n" );
+		fprintf(stderr, "mumble_init: Failed to initialize winsock\n");
 
 		return 1;
 	}
@@ -46,14 +46,14 @@ int mumble_init( mumble_t* context )
 	return 0;
 }
 
-int mumble_connect( mumble_t* context, const char* host, uint32_t port )
+int mumble_connect(mumble_t* context, const char* host, uint32_t port)
 {
-	mumble_server_t* srv = ( mumble_server_t* )malloc( sizeof( mumble_server_t ) );
+	mumble_server_t* srv = (mumble_server_t*)malloc(sizeof(mumble_server_t));
 
 	srv->host = host;
 	srv->port = port;
 
-	if ( context->servers )
+	if (context->servers)
 		srv->next = context->servers;
 	else
 		srv->next = NULL;
@@ -61,7 +61,7 @@ int mumble_connect( mumble_t* context, const char* host, uint32_t port )
 	context->servers = srv;
 	context->num_servers++;
 
-	if ( mumble_server_connect( srv ) != 0 )
+	if (mumble_server_connect(srv) != 0)
 		return 1;
 
 	return 0;

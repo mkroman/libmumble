@@ -20,13 +20,13 @@
 
 static mumble_t g_mumble;
 
-int main( int argc, char** argv )
+int main(int argc, char** argv)
 {
-	( void )argc;
-	( void )argv;
+	(void)argc;
+	(void)argv;
 
-	mumble_init( &g_mumble );
-	mumble_connect( &g_mumble, "static.uplink.io", 64738 );
+	mumble_init(&g_mumble);
+	mumble_connect(&g_mumble, "chronicle.nodes.uplink.io", 64738);
 
 	return 0;
 }

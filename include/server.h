@@ -32,9 +32,10 @@
 #  include <winsock2.h>
 #  include <ws2tcpip.h>
 #  include <windows.h>
-
+#  
 #  pragma comment(lib, "Ws2_32.lib")
 #elif defined(__unix__)
+#  include <arpa/inet.h>
 #  include <sys/types.h>
 #  include <sys/socket.h>
 #  include <netdb.h>
@@ -44,14 +45,40 @@
 extern "C" {
 #endif
 
+#ifdef _WIN32
+typedef SOCKET socket_t;
+#else
+typedef int socket_t;
+#endif
+
 typedef struct mumble_server_t
 {
 	const char* host;
 	uint32_t port;
+	struct sockaddr_storage socket_address;
+	socket_t fd;
 	struct mumble_server_t* next;
 } mumble_server_t;
 
-int mumble_server_connect( mumble_server_t* server );
+/**
+ * Get the address of the remote host.
+ *
+ * @param[in] server a pointer to an initialized server struct.
+ * @param[out] addr allocated memory for the socket address.
+ *
+ * @returns zero on success, non-zero otherwise.
+ */
+int mumble_server_resolve_addr(mumble_server_t* server,
+							   struct sockaddr_storage* addr);
+
+/**
+ * Create a socket and connect to the remote host.
+ *
+ * @param[in] server a pointer to an initialized server struct.
+ *
+ * @returns zero on success, non-zero otherwise.
+ */
+int mumble_server_connect(mumble_server_t* server);
 
 #ifdef __cplusplus
 }
