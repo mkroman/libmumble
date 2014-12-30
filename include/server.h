@@ -26,25 +26,25 @@
 #pragma once
 
 #include <stdint.h>
+#include <string.h>
 
-#ifdef __WINDOWS__
+#ifdef _WIN32
 #  include <winsock2.h>
 #  include <ws2tcpip.h>
 #  include <windows.h>
 
 #  pragma comment(lib, "Ws2_32.lib")
 #elif defined(__unix__)
-#  include <arpa/inet.h>
+#  include <sys/types.h>
 #  include <sys/socket.h>
+#  include <netdb.h>
 #endif
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/**
-	*/
-typedef struct
+typedef struct mumble_server_t
 {
 	const char* host;
 	uint32_t port;

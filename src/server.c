@@ -1,3 +1,4 @@
+#include <netdb.h>
 #include <stdio.h>
 #include "server.h"
 
@@ -7,9 +8,13 @@ int mumble_server_connect( mumble_server_t* server )
 	struct addrinfo *addressInfo, addressHints;
 	char portBuffer[ 6 ];
 
+#ifdef _WIN32
 	if ( _itoa_s( server->port, portBuffer, sizeof portBuffer, 10 ) != 0 )
+#else
+	if ( snprintf( portBuffer, sizeof portBuffer, "%u", server->port ) < 0 )
+#endif
 	{
-		fprintf( stderr, "mumble_server_connect: Could not convert port to number\n" );
+		fprintf( stderr, "mumble_server_connect: could not convert port to number\n" );
 
 		return 1;
 	}

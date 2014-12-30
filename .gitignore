@@ -7,5 +7,5 @@ client
 proto/Mumble.pb-c.h
 proto/Mumble.pb-c.c
 
-Build/
+[Bb]uild/
 docs/

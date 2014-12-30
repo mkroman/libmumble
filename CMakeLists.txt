@@ -1,6 +1,9 @@
 project (libmumble)
 cmake_minimum_required (VERSION 2.8)
 
+set (CMAKE_C_FLAGS ${CMAKE_C_FLAGS} "-std=c99")
+set (CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
+
 include_directories (include/)
 
 if (WIN32)
@@ -22,13 +25,22 @@ set (client_SOURCES
   src/client.c)
 
 # Find OpenSSL.
-find_package (OpenSSL)
+find_package (OpenSSL REQUIRED)
 
 # Link against OpenSSL.
-set (${PROJECT_NAME}_OPENSSL_LIBS ${OPENSSL_SSL_LIBRARY})
+set (${PROJECT_NAME}_LIBS ${OPENSSL_SSL_LIBRARY})
 
 # Include OpenSSL.
 include_directories (${OPENSSL_INCLUDE_DIR})
+
+# Find libev.
+find_package (LibEV REQUIRED)
+
+# Link against libev.
+set (${PROJECT_NAME}_LIBS ${${PROJECT_NAME}_LIBS} "${LIBEV_LIBRARIES}")
+
+# Include libev header directories.
+include_directories (${LIBEV_INCLUDE_DIRS})
 
 # Find the protoc-c executable.
 find_program (PROTOBUF_C_PROTOC_EXECUTABLE
@@ -64,5 +76,5 @@ add_library (${PROJECT_NAME} STATIC
 
 add_executable (client ${client_SOURCES})
 
-target_link_libraries (${PROJECT_NAME} ${PROTOC_C_LIBRARY} ${${PROJECT_NAME}_OPENSSL_LIBS})
+target_link_libraries (${PROJECT_NAME} ${PROTOC_C_LIBRARY} ${${PROJECT_NAME}_LIBS})
 target_link_libraries (client ${PROJECT_NAME})
