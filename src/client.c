@@ -25,8 +25,16 @@ int main(int argc, char** argv)
 	(void)argc;
 	(void)argv;
 
+	static const char* kDefaultHost = "chronicle.nodes.uplink.io";
+	const char* host = kDefaultHost;
+
+	if (argc > 1)
+		host = argv[1];
+
 	mumble_init(&g_mumble);
-	mumble_connect(&g_mumble, "chronicle.nodes.uplink.io", 64738);
+	mumble_connect(&g_mumble, host, 64738);
+	mumble_run(&g_mumble);
+	mumble_destroy(&g_mumble);
 
 	return 0;
 }

@@ -26,19 +26,22 @@
 #pragma once
 
 #include <stdint.h>
+#include <openssl/ssl.h>
 
 #include "server.h"
 
 #ifdef __cplusplus
 extern "C" {
-#endif
+#endif /* __cplusplus */
 
 /**
  * The mumble client structure, also referenced as the `context`.
  */
-typedef struct
+typedef struct mumble_t
 {
 	int num_servers;
+	SSL_CTX* ssl_ctx;
+	struct ev_loop* loop;
 	mumble_server_t* servers;
 } mumble_t;
 
@@ -49,7 +52,18 @@ typedef struct
  *
  * @returns zero on success, non-zero otherwise.
  */
-int mumble_init(mumble_t* context);
+int
+mumble_init(mumble_t* context);
+
+/**
+ * Destroy the mumble context, freeing all associated resources.
+ *
+ * @param context a pointer to the initialized mumble client.
+ *
+ * @returns zero on success, non-zero otherwise.
+ */
+int
+mumble_destroy(mumble_t* context);
 
 /**
  * @brief Connect to a mumble server.
@@ -60,8 +74,19 @@ int mumble_init(mumble_t* context);
  *
  * @returns zero on success, non-zero otherwise.
  */
-int mumble_connect(mumble_t* context, const char* host, uint32_t port);
+int
+mumble_connect(mumble_t* context, const char* host, uint32_t port);
+
+/**
+ * Run the main event loop.
+ *
+ * @param context the initialized mumble client.
+ *
+ * @returns zero on success, non-zero otherwise.
+ */
+int
+mumble_run(mumble_t* context);
 
 #ifdef __cplusplus
 }
-#endif
+#endif /* __cplusplus */

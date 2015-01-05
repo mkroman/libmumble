@@ -28,22 +28,25 @@
 #include <stdint.h>
 #include <string.h>
 
+#include <openssl/ssl.h>
+#include <ev.h>
+
 #ifdef _WIN32
 #  include <winsock2.h>
 #  include <ws2tcpip.h>
 #  include <windows.h>
 #  
 #  pragma comment(lib, "Ws2_32.lib")
-#elif defined(__unix__)
+#elif defined(__unix__) /* _WIN32 */
 #  include <arpa/inet.h>
 #  include <sys/types.h>
 #  include <sys/socket.h>
 #  include <netdb.h>
-#endif
+#endif /* defined(__unix__) */
 
 #ifdef __cplusplus
 extern "C" {
-#endif
+#endif /* __cplusplus */
 
 #ifdef _WIN32
 typedef SOCKET socket_t;
@@ -51,35 +54,38 @@ typedef SOCKET socket_t;
 typedef int socket_t;
 #endif
 
+struct mumble_t;
+
 typedef struct mumble_server_t
 {
 	const char* host;
 	uint32_t port;
 	struct sockaddr_storage socket_address;
+	socklen_t socket_addrlen;
 	socket_t fd;
+	SSL* ssl;
+	ev_io watcher;
+	
 	struct mumble_server_t* next;
 } mumble_server_t;
 
-/**
- * Get the address of the remote host.
- *
- * @param[in] server a pointer to an initialized server struct.
- * @param[out] addr allocated memory for the socket address.
- *
- * @returns zero on success, non-zero otherwise.
- */
-int mumble_server_resolve_addr(mumble_server_t* server,
-							   struct sockaddr_storage* addr);
+socket_t
+mumble_server_create_socket();
 
 /**
  * Create a socket and connect to the remote host.
  *
  * @param[in] server a pointer to an initialized server struct.
+ * @param[in] context a pointer to the initialized mumble context.
  *
  * @returns zero on success, non-zero otherwise.
  */
-int mumble_server_connect(mumble_server_t* server);
+int
+mumble_server_connect(mumble_server_t* server, struct mumble_t* context);
+
+void mumble_server_read(EV_P_ ev_io *w, int revents);
+void mumble_server_handshake(EV_P_ ev_io *w, int revents);
 
 #ifdef __cplusplus
 }
-#endif
+#endif /* __cplusplus */

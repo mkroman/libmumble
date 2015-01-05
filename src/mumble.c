@@ -18,6 +18,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include "mumble.h"
 #include "server.h"
@@ -42,6 +43,40 @@ int mumble_init(mumble_t* context)
 		return 1;
 	}
 #endif
+	// Initialize SSL.
+	SSL_library_init();
+
+	// Initialize the SSL context.
+	context->ssl_ctx = SSL_CTX_new(SSLv23_client_method());
+
+	if (!context->ssl_ctx)
+	{
+		fprintf(stderr, "SSL_CTX_new failed\n");
+
+		return 1;
+	}
+
+	// Initialize a new event loop.
+	context->loop = ev_loop_new(0);
+
+	return 0;
+}
+
+int mumble_destroy(mumble_t* context)
+{
+	// Free SSL resources.
+	SSL_CTX_free(context->ssl_ctx);
+	
+	// Free event resources.
+	if (context->loop)
+		ev_loop_destroy(context->loop);
+
+	// Close any file descriptors.
+	for (struct mumble_server_t* srv = context->servers; srv->next != NULL;
+		 srv = srv->next)
+	{
+		close(srv->fd);
+	}
 
 	return 0;
 }
@@ -61,8 +96,15 @@ int mumble_connect(mumble_t* context, const char* host, uint32_t port)
 	context->servers = srv;
 	context->num_servers++;
 
-	if (mumble_server_connect(srv) != 0)
+	if (mumble_server_connect(srv, context) != 0)
 		return 1;
+
+	return 0;
+}
+
+int mumble_run(mumble_t* context)
+{
+	ev_loop(context->loop, 0);
 
 	return 0;
 }
