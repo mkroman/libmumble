@@ -31,7 +31,7 @@ int main(int argc, char** argv)
 	if (argc > 1)
 		host = argv[1];
 
-	mumble_init(&g_mumble);
+	mumble_init(&g_mumble, "public.crt", "private.key");
 	mumble_connect(&g_mumble, host, 64738);
 	mumble_run(&g_mumble);
 	mumble_destroy(&g_mumble);

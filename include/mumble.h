@@ -52,6 +52,8 @@ typedef struct mumble_t
 	int num_servers;
 	SSL_CTX* ssl_ctx;
 	struct ev_loop* loop;
+	const char* certificate_file;
+	const char* key_file;
 	mumble_server_t* servers;
 } mumble_t;
 
@@ -59,11 +61,15 @@ typedef struct mumble_t
  * Initialize a new mumble client context.
  *
  * @param context a pointer to allocated memory large enough to hold mumble_t.
+ * @param cert_file a pointer to a string containing the file path to a client
+ *  certificate.
+ * @param key_file a pointer to a string containing the file path to a private
+ *  key.
  *
  * @returns zero on success, non-zero otherwise.
  */
 int
-mumble_init(mumble_t* context);
+mumble_init(mumble_t* context, const char* cert_file, const char* key_file);
 
 /**
  * Destroy the mumble context, freeing all associated resources.
@@ -86,6 +92,13 @@ mumble_destroy(mumble_t* context);
  */
 int
 mumble_connect(mumble_t* context, const char* host, uint32_t port);
+
+/**
+ * Send the client version message to the server.
+ *
+ */
+int
+mumble_send_version(mumble_t* context, mumble_server_t* server);
 
 /**
  * Run the main event loop.

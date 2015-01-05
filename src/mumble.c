@@ -23,18 +23,12 @@
 #include "mumble.h"
 #include "server.h"
 
-int mumble_init(mumble_t* context)
+int
+mumble_init(mumble_t* context, const char* certificate_file, const char* key_file)
 {
-#if defined(__WINDOWS__)
-	int result;
+#ifdef _WIN32
 	WSADATA wsaData;
-#endif
-
-	context->servers = 0;
-	context->num_servers = 0;
-
-#if defined(__WINDOWS__)
-	result = WSAStartup(MAKEWORD(2, 2), &wsaData);
+	int result = WSAStartup(MAKEWORD(2, 2), &wsaData);
 
 	if (result != 0)
 	{
@@ -42,7 +36,11 @@ int mumble_init(mumble_t* context)
 
 		return 1;
 	}
-#endif
+#endif /* _WIN32 */
+
+	context->servers = 0;
+	context->num_servers = 0;
+
 	// Initialize SSL.
 	SSL_library_init();
 
@@ -55,6 +53,32 @@ int mumble_init(mumble_t* context)
 
 		return 1;
 	}
+
+	if (!SSL_CTX_use_certificate_chain_file(context->ssl_ctx,
+											certificate_file))
+	{
+		fprintf(stderr, "SSL_CTX_use_certificate_chain_file failed (%s)\n", certificate_file);
+
+		return 1;
+	}
+
+	if (!SSL_CTX_use_PrivateKey_file(context->ssl_ctx,
+									 key_file, SSL_FILETYPE_PEM))
+	{
+		fprintf(stderr, "SSL_CTX_use_PrivateKey_file failed\n");
+
+		return 1;
+	}
+
+	if (!SSL_CTX_check_private_key(context->ssl_ctx))
+	{
+		fprintf(stderr, "invalid cert/key pair\n");
+
+		return 1;
+	}
+	
+	context->key_file = key_file;
+	context->certificate_file = certificate_file;
 
 	// Initialize a new event loop.
 	context->loop = ev_loop_new(0);
