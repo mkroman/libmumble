@@ -85,6 +85,13 @@ int mumble_connect(mumble_t* context, const char* host, uint32_t port)
 {
 	mumble_server_t* srv = (mumble_server_t*)malloc(sizeof(mumble_server_t));
 
+	if (mumble_server_init(srv) != 0)
+	{
+		fprintf(stderr, "mumble_server_init failed\n");
+
+		return 1;
+	}
+
 	srv->host = host;
 	srv->port = port;
 

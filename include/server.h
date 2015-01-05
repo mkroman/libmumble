@@ -54,6 +54,8 @@ typedef SOCKET socket_t;
 typedef int socket_t;
 #endif
 
+static const int kBufferSize = 1024;
+
 struct mumble_t;
 
 typedef struct mumble_server_t
@@ -65,7 +67,8 @@ typedef struct mumble_server_t
 	socket_t fd;
 	SSL* ssl;
 	ev_io watcher;
-	
+	char buffer[kBufferSize];
+	size_t buffer_pos;
 	struct mumble_server_t* next;
 } mumble_server_t;
 
@@ -83,7 +86,17 @@ mumble_server_create_socket();
 int
 mumble_server_connect(mumble_server_t* server, struct mumble_t* context);
 
-void mumble_server_read(EV_P_ ev_io *w, int revents);
+/**
+ * Initialize a server struct.
+ *
+ * @param[in] server a pointer to allocated memory space.
+ *
+ * @returns zero on success, non-zero otherwise.
+ */
+int
+mumble_server_init(mumble_server_t* server);
+
+void mumble_server_callback(EV_P_ ev_io *w, int revents);
 void mumble_server_handshake(EV_P_ ev_io *w, int revents);
 
 #ifdef __cplusplus

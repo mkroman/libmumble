@@ -30,6 +30,16 @@
 
 #include "server.h"
 
+#define LOG(...)                      \
+	do {                              \
+		fprintf(stdout, __VA_ARGS__); \
+	} while (0)
+
+#define ERR(...)                      \
+	do {                              \
+		fprintf(stderr, __VA_ARGS__); \
+	} while (0)
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */

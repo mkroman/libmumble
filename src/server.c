@@ -36,6 +36,19 @@ mumble_server_create_socket()
 }
 
 int
+mumble_server_init(mumble_server_t* server)
+{
+	if (!server)
+		return 1;
+
+	server->host = 0;
+	server->buffer[0] = 0;
+	server->buffer_pos = 0;
+
+	return 0;
+}
+
+int
 mumble_server_connect(mumble_server_t* server, struct mumble_t* context)
 {
 	int result;
@@ -128,18 +141,50 @@ mumble_server_connect(mumble_server_t* server, struct mumble_t* context)
 		return 1;
 	}
 
-	ev_io_init(&server->watcher, mumble_server_handshake, fd, EV_READ);
+	server->watcher.data = server;
+
+	ev_io_init(&server->watcher, mumble_server_handshake, fd, EV_READ | EV_WRITE);
 	ev_io_start(context->loop, &server->watcher);
 
 	return result;
 }
 
-void mumble_server_read(EV_P_ ev_io *w, int revents)
+void mumble_server_callback(EV_P_ ev_io *w, int revents)
 {
-	printf("mumble_server_read\n");
+	if (revents & EV_WRITE)
+	{
+		/* Write any pending data. */
+
+	}
+	else /* Assume EV_READ. */
+	{
+		printf("mumble_server_read\n");
+	}
 }
 
 void mumble_server_handshake(EV_P_ ev_io *w, int revents)
 {
-	printf("mumble_server_handshake\n");
+	mumble_server_t* srv = (mumble_server_t*)w->data;
+	int result = SSL_do_handshake(srv->ssl);
+
+	if (result == 1)
+	{
+		/* SSL handshake complete */
+		LOG("mumble client handshake complete\n");
+
+		/* Change the callback to the generic, non-handshake one. */
+		ev_io_stop(EV_A_ w);
+		ev_set_cb(w, mumble_server_callback);
+		ev_io_set(w, srv->fd, EV_READ);
+		ev_io_start(EV_A_ w);
+	}
+	else
+	{
+		int err = SSL_get_error(srv->ssl, result);
+
+		if (err != SSL_ERROR_WANT_READ && err != SSL_ERROR_WANT_WRITE)
+		{
+			fprintf(stderr, "Unexpected SSL error during handshake: %d\n", err);
+		}
+	}
 }
