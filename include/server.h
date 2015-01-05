@@ -67,8 +67,10 @@ typedef struct mumble_server_t
 	socket_t fd;
 	SSL* ssl;
 	ev_io watcher;
-	char buffer[kBufferSize];
-	size_t buffer_pos;
+	char read_buffer[kBufferSize];
+	size_t read_pos;
+	char write_buffer[kBufferSize];
+	size_t write_pos;
 	struct mumble_server_t* next;
 } mumble_server_t;
 

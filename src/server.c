@@ -42,8 +42,10 @@ mumble_server_init(mumble_server_t* server)
 		return 1;
 
 	server->host = 0;
-	server->buffer[0] = 0;
-	server->buffer_pos = 0;
+	server->read_pos = 0;
+	server->read_buffer[0] = 0;
+	server->write_pos = 0;
+	server->write_buffer[0] = 0;
 
 	return 0;
 }
