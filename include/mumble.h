@@ -24,6 +24,8 @@
 */
 
 #pragma once
+#ifndef __MUMBLE_H
+#define __MUMBLE_H
 
 #include <stdint.h>
 #include <openssl/ssl.h>
@@ -113,3 +115,5 @@ mumble_run(mumble_t* context);
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
+
+#endif /* __MUMBLE_H */

@@ -17,6 +17,8 @@
  */
 
 #pragma once
+#ifndef __MUMBLE_PROTOCOL_H
+#define __MUMBLE_PROTOCOL_H
 
 enum mumble_packet_type
 {
@@ -47,3 +49,5 @@ enum mumble_packet_type
 	MUMBLE_PACKET_SERVER_CONFIG         = 24,
 	MUMBLE_PACKET_SUGGEST_CONFIG        = 25
 };
+
+#endif /* __MUMBLE_PROTOCOL_H */

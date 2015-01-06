@@ -24,6 +24,8 @@
  */
 
 #pragma once
+#ifndef __MUMBLE_SERVER_H
+#define __MUMBLE_SERVER_H
 
 #include <stdint.h>
 #include <string.h>
@@ -52,6 +54,7 @@ typedef SOCKET socket_t;
 #else
 typedef int socket_t;
 #endif
+
 
 /**
  * The default buffer size.
@@ -128,3 +131,5 @@ mumble_server_send_version(mumble_server_t* server);
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
+
+#endif /* __MUMBLE_SERVER_H */

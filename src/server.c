@@ -251,6 +251,14 @@ void mumble_server_handshake(EV_P_ ev_io *w, int revents)
 
 int mumble_server_send_version(mumble_server_t* server)
 {
+	MumbleProto__Version version = MUMBLE_PROTO__VERSION__INIT;
+
+	version.version = 66055;
+	version.release = "1.2.8";
+	version.os = "X11";
+	version.os_version = "Linux";
+
+
 
 	return 0;
 }
