@@ -23,8 +23,8 @@
 #include "mumble.h"
 #include "server.h"
 
-int
-mumble_init(mumble_t* context, const char* certificate_file, const char* key_file)
+int mumble_init(mumble_t* context, const char* certificate_file,
+				const char* key_file)
 {
 #ifdef _WIN32
 	WSADATA wsaData;
@@ -57,13 +57,14 @@ mumble_init(mumble_t* context, const char* certificate_file, const char* key_fil
 	if (!SSL_CTX_use_certificate_chain_file(context->ssl_ctx,
 											certificate_file))
 	{
-		fprintf(stderr, "SSL_CTX_use_certificate_chain_file failed (%s)\n", certificate_file);
+		fprintf(stderr, "SSL_CTX_use_certificate_chain_file failed (%s)\n",
+				certificate_file);
 
 		return 1;
 	}
 
-	if (!SSL_CTX_use_PrivateKey_file(context->ssl_ctx,
-									 key_file, SSL_FILETYPE_PEM))
+	if (!SSL_CTX_use_PrivateKey_file(context->ssl_ctx, key_file,
+									 SSL_FILETYPE_PEM))
 	{
 		fprintf(stderr, "SSL_CTX_use_PrivateKey_file failed\n");
 
@@ -96,8 +97,8 @@ int mumble_destroy(mumble_t* context)
 		ev_loop_destroy(context->loop);
 
 	// Close any file descriptors.
-	for (struct mumble_server_t* srv = context->servers; srv->next != NULL;
-		 srv = srv->next)
+	for (struct mumble_server_t* srv = context->servers;
+		 srv->next != NULL; srv = srv->next)
 	{
 		close(srv->fd);
 	}

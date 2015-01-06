@@ -24,8 +24,8 @@
  */
 
 #pragma once
-#ifndef __MUMBLE_SERVER_H
-#define __MUMBLE_SERVER_H
+#ifndef MUMBLE_SERVER_H
+#define MUMBLE_SERVER_H
 
 #include <stdint.h>
 #include <string.h>
@@ -54,7 +54,6 @@ typedef SOCKET socket_t;
 #else
 typedef int socket_t;
 #endif
-
 
 /**
  * The default buffer size.
@@ -94,8 +93,7 @@ typedef struct mumble_server_t
 	struct mumble_server_t* next;
 } mumble_server_t;
 
-socket_t
-mumble_server_create_socket();
+socket_t mumble_server_create_socket();
 
 /**
  * Create a socket and connect to the remote host.
@@ -105,8 +103,7 @@ mumble_server_create_socket();
  *
  * @returns zero on success, non-zero otherwise.
  */
-int
-mumble_server_connect(mumble_server_t* server, struct mumble_t* context);
+int mumble_server_connect(mumble_server_t* server, struct mumble_t* context);
 
 /**
  * Initialize a server struct.
@@ -115,21 +112,18 @@ mumble_server_connect(mumble_server_t* server, struct mumble_t* context);
  *
  * @returns zero on success, non-zero otherwise.
  */
-int
-mumble_server_init(mumble_server_t* server);
+int mumble_server_init(mumble_server_t* server);
 
-int
-mumble_server_read_message(mumble_server_t* server, uint16_t type,
-						   uint32_t length);
+int mumble_server_read_message(mumble_server_t* server, uint16_t type, 
+							   uint32_t length);
 
 void mumble_server_callback(EV_P_ ev_io *w, int revents);
 void mumble_server_handshake(EV_P_ ev_io *w, int revents);
 
-int
-mumble_server_send_version(mumble_server_t* server);
+int mumble_server_send_version(mumble_server_t* server);
 
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
 
-#endif /* __MUMBLE_SERVER_H */
+#endif /* MUMBLE_SERVER_H */

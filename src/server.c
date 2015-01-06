@@ -14,8 +14,7 @@ int setnonblock(socket_t fd)
 #endif /* __unix__ */
 }
 
-socket_t
-mumble_server_create_socket()
+socket_t mumble_server_create_socket()
 {
 	socket_t fd;
 
@@ -30,7 +29,8 @@ mumble_server_create_socket()
 	
 	if (setnonblock(fd) != 0)
 	{
-		fprintf(stderr, "mumble_server_create_socket: could not make socket non-blocking\n");
+		fprintf(stderr, "mumble_server_create_socket: could not "
+				"make socket non-blocking\n");
 
 		return -1;
 	}
@@ -38,8 +38,7 @@ mumble_server_create_socket()
 	return fd;
 }
 
-int
-mumble_server_init(mumble_server_t* server)
+int mumble_server_init(mumble_server_t* server)
 {
 	if (!server)
 		return 1;
@@ -55,8 +54,7 @@ mumble_server_init(mumble_server_t* server)
 	return 0;
 }
 
-int
-mumble_server_connect(mumble_server_t* server, struct mumble_t* context)
+int mumble_server_connect(mumble_server_t* server, struct mumble_t* context)
 {
 	int result;
 	socket_t fd;
@@ -65,11 +63,12 @@ mumble_server_connect(mumble_server_t* server, struct mumble_t* context)
 
 #ifdef _WIN32
 	if (_itoa_s(server->port, port_buffer, sizeof port_buffer, 10) != 0)
-#else
+#else /* _WIN32 */
 	if (snprintf(port_buffer, sizeof port_buffer, "%u", server->port) < 0)
-#endif /* _WIN32 */
+#endif
 	{
-		fprintf(stderr, "mumble_server_connect: could not convert port to number\n");
+		fprintf(stderr, "mumble_server_connect: could not convert "
+				"port to number\n");
 
 		return 1;
 	}
@@ -93,8 +92,7 @@ mumble_server_connect(mumble_server_t* server, struct mumble_t* context)
 
 	for (struct addrinfo* ptr = address; ptr != NULL; ptr = ptr->ai_next)
 	{
-		if (ptr->ai_family != AF_UNSPEC &&
-			(connect(fd, (struct sockaddr*)ptr->ai_addr, ptr->ai_addrlen) != 0))
+		if (connect(fd, (struct sockaddr*)ptr->ai_addr, ptr->ai_addrlen) != 0)
 		{
 			if (errno == EINPROGRESS)
 			{
@@ -150,8 +148,8 @@ mumble_server_connect(mumble_server_t* server, struct mumble_t* context)
 
 	server->watcher.data = server;
 
-	ev_io_init(&server->watcher,
-			   mumble_server_handshake, fd, EV_READ | EV_WRITE);
+	ev_io_init(&server->watcher, mumble_server_handshake, fd,
+			   EV_READ | EV_WRITE);
 	ev_io_start(context->loop, &server->watcher);
 
 	return result;
@@ -171,7 +169,7 @@ void mumble_server_callback(EV_P_ ev_io *w, int revents)
 	}
 	else /* Assume EV_READ. */
 	{
-		result = SSL_read(srv->ssl, (srv->read_buffer.data +
+		result = SSL_read(srv->ssl, (srv->read_buffer.data + 
 									 srv->read_buffer.pos), 512);
 
 		if (result > 0)
@@ -182,7 +180,8 @@ void mumble_server_callback(EV_P_ ev_io *w, int revents)
 			if (srv->read_buffer.size > kMumbleHeaderSize)
 			{
 				type = ntohs(*(uint16_t*)srv->read_buffer.data);
-				length = ntohl(*(uint32_t*)(srv->read_buffer.data + sizeof(uint16_t)));
+				length = ntohl(*(uint32_t*)(srv->read_buffer.data +
+											sizeof(uint16_t)));
 
 				if (srv->read_buffer.size >= (length + kMumbleHeaderSize))
 					mumble_server_read_message(srv, type, length);
@@ -195,7 +194,8 @@ void mumble_server_callback(EV_P_ ev_io *w, int revents)
 	}
 }
 
-int mumble_server_read_message(mumble_server_t* server, uint16_t type, uint32_t length)
+int mumble_server_read_message(mumble_server_t* server, uint16_t type,
+							   uint32_t length)
 {
 	int message_size = kMumbleHeaderSize + length;
 	const uint8_t* data =
@@ -209,7 +209,7 @@ int mumble_server_read_message(mumble_server_t* server, uint16_t type, uint32_t 
 		case MUMBLE_PACKET_VERSION:
 			{
 				MumbleProto__Version* version =
-					mumble_proto__version__unpack(NULL, length, data);
+						mumble_proto__version__unpack(NULL, length, data);
 
 				printf("Received version message: %s - %s (%s)\n",
 					   version->release, version->os, version->os_version);
@@ -244,7 +244,8 @@ void mumble_server_handshake(EV_P_ ev_io *w, int revents)
 
 		if (err != SSL_ERROR_WANT_READ && err != SSL_ERROR_WANT_WRITE)
 		{
-			fprintf(stderr, "Unexpected SSL error during handshake: %d\n", err);
+			fprintf(stderr, "Unexpected SSL error during handshake: %d\n",
+					err);
 		}
 	}
 }
@@ -257,8 +258,6 @@ int mumble_server_send_version(mumble_server_t* server)
 	version.release = "1.2.8";
 	version.os = "X11";
 	version.os_version = "Linux";
-
-
 
 	return 0;
 }

@@ -24,8 +24,8 @@
 */
 
 #pragma once
-#ifndef __MUMBLE_H
-#define __MUMBLE_H
+#ifndef MUMBLE_H
+#define MUMBLE_H
 
 #include <stdint.h>
 #include <openssl/ssl.h>
@@ -64,14 +64,13 @@ typedef struct mumble_t
  *
  * @param context a pointer to allocated memory large enough to hold mumble_t.
  * @param cert_file a pointer to a string containing the file path to a client
- *  certificate.
+ *   certificate.
  * @param key_file a pointer to a string containing the file path to a private
- *  key.
+ *   key.
  *
  * @returns zero on success, non-zero otherwise.
  */
-int
-mumble_init(mumble_t* context, const char* cert_file, const char* key_file);
+int mumble_init(mumble_t* context, const char* cert_file, const char* key_file);
 
 /**
  * Destroy the mumble context, freeing all associated resources.
@@ -80,8 +79,7 @@ mumble_init(mumble_t* context, const char* cert_file, const char* key_file);
  *
  * @returns zero on success, non-zero otherwise.
  */
-int
-mumble_destroy(mumble_t* context);
+int mumble_destroy(mumble_t* context);
 
 /**
  * @brief Connect to a mumble server.
@@ -92,15 +90,13 @@ mumble_destroy(mumble_t* context);
  *
  * @returns zero on success, non-zero otherwise.
  */
-int
-mumble_connect(mumble_t* context, const char* host, uint32_t port);
+int mumble_connect(mumble_t* context, const char* host, uint32_t port);
 
 /**
  * Send the client version message to the server.
  *
  */
-int
-mumble_send_version(mumble_t* context, mumble_server_t* server);
+int mumble_send_version(mumble_t* context, mumble_server_t* server);
 
 /**
  * Run the main event loop.
@@ -109,11 +105,10 @@ mumble_send_version(mumble_t* context, mumble_server_t* server);
  *
  * @returns zero on success, non-zero otherwise.
  */
-int
-mumble_run(mumble_t* context);
+int mumble_run(mumble_t* context);
 
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
 
-#endif /* __MUMBLE_H */
+#endif /* MUMBLE_H */
