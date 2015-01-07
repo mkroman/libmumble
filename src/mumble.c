@@ -41,10 +41,28 @@ int mumble_init(mumble_t* context, const char* certificate_file,
 	context->servers = 0;
 	context->num_servers = 0;
 
-	// Initialize SSL.
+	context->key_file = key_file;
+	context->certificate_file = certificate_file;
+
+	if (mumble_init_ssl(context) != 0)
+	{
+		fprintf(stderr, "mumble_init_ssl failed\n");
+
+		return 1;
+	}
+
+	// Initialize a new event loop.
+	context->loop = ev_loop_new(0);
+
+	return 0;
+}
+
+int mumble_init_ssl(mumble_t* context)
+{
+	/* Initialize the SSL library. */
 	SSL_library_init();
 
-	// Initialize the SSL context.
+	/* Initialize the SSL context. */
 	context->ssl_ctx = SSL_CTX_new(SSLv23_client_method());
 
 	if (!context->ssl_ctx)
@@ -55,15 +73,15 @@ int mumble_init(mumble_t* context, const char* certificate_file,
 	}
 
 	if (!SSL_CTX_use_certificate_chain_file(context->ssl_ctx,
-											certificate_file))
+											context->certificate_file))
 	{
 		fprintf(stderr, "SSL_CTX_use_certificate_chain_file failed (%s)\n",
-				certificate_file);
+				context->certificate_file);
 
 		return 1;
 	}
 
-	if (!SSL_CTX_use_PrivateKey_file(context->ssl_ctx, key_file,
+	if (!SSL_CTX_use_PrivateKey_file(context->ssl_ctx, context->key_file,
 									 SSL_FILETYPE_PEM))
 	{
 		fprintf(stderr, "SSL_CTX_use_PrivateKey_file failed\n");
@@ -78,12 +96,6 @@ int mumble_init(mumble_t* context, const char* certificate_file,
 		return 1;
 	}
 	
-	context->key_file = key_file;
-	context->certificate_file = certificate_file;
-
-	// Initialize a new event loop.
-	context->loop = ev_loop_new(0);
-
 	return 0;
 }
 
@@ -110,14 +122,13 @@ int mumble_connect(mumble_t* context, const char* host, uint32_t port)
 {
 	mumble_server_t* srv = (mumble_server_t*)malloc(sizeof(mumble_server_t));
 
-	if (mumble_server_init(srv) != 0)
+	if (mumble_server_init(context, srv) != 0)
 	{
 		fprintf(stderr, "mumble_server_init failed\n");
 
 		return 1;
 	}
 
-	srv->ctx = context;
 	srv->host = host;
 	srv->port = port;
 

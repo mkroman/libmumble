@@ -39,7 +39,7 @@ socket_t mumble_server_create_socket()
 	return fd;
 }
 
-int mumble_server_init(mumble_server_t* server)
+int mumble_server_init(mumble_t* context, mumble_server_t* server)
 {
 	if (!server)
 		return 1;
@@ -51,6 +51,7 @@ int mumble_server_init(mumble_server_t* server)
 	server->write_buffer.data[0] = 0;
 	server->write_buffer.pos = 0;
 	server->write_buffer.size = 0;
+	server->ctx = context;
 
 	return 0;
 }
@@ -121,9 +122,24 @@ int mumble_server_connect(mumble_server_t* server, struct mumble_t* context)
 	}
 
 	server->fd = fd;
+	server->watcher.data = server;
 
-	// Set up SSL.
-	server->ssl = SSL_new(context->ssl_ctx);
+	if (mumble_server_init_ssl(server) != 0)
+		return 1;
+
+	ev_io_init(&server->watcher, mumble_server_handshake, fd,
+			   EV_READ | EV_WRITE);
+	ev_io_start(context->loop, &server->watcher);
+
+	return result;
+}
+
+int mumble_server_init_ssl(mumble_server_t* server)
+{
+	int result;
+
+	/* Initialize SSL for the given server. */
+	server->ssl = SSL_new(server->ctx->ssl_ctx);
 
 	if (server->ssl == NULL)
 	{
@@ -147,13 +163,7 @@ int mumble_server_connect(mumble_server_t* server, struct mumble_t* context)
 		return 1;
 	}
 
-	server->watcher.data = server;
-
-	ev_io_init(&server->watcher, mumble_server_handshake, fd,
-			   EV_READ | EV_WRITE);
-	ev_io_start(context->loop, &server->watcher);
-
-	return result;
+	return 0;
 }
 
 void mumble_server_callback(EV_P_ ev_io *w, int revents)
@@ -178,9 +188,10 @@ void mumble_server_callback(EV_P_ ev_io *w, int revents)
 		if (written > 0)
 		{
 			char* buffer_offset = (char*)(srv->write_buffer.data + written);
-			printf("Wrote %d bytes.\n", written);
+			printf("Wrote %zu bytes.\n", written);
 
 			srv->write_buffer.size -= written;
+			srv->write_buffer.pos -= written;
 			memmove(srv->write_buffer.data, buffer_offset,
 					srv->write_buffer.size);
 		}
@@ -198,6 +209,8 @@ void mumble_server_callback(EV_P_ ev_io *w, int revents)
 		{
 			ERR("Received data exceeds read buffer size\n");
 		}
+
+		LOG("Remaining space in buffer: %zu\n", (kMumbleBufferSize - srv->read_buffer.size));
 
 		result = SSL_read(srv->ssl, (srv->read_buffer.data + 
 									 srv->read_buffer.pos),
@@ -217,10 +230,10 @@ void mumble_server_callback(EV_P_ ev_io *w, int revents)
 											sizeof(uint16_t)));
 				total_length = length + kMumbleHeaderSize;
 
-				if (srv->read_buffer.size >= total_length)
+				while (srv->read_buffer.size >= total_length)
 					if (mumble_server_read_message(srv, type, length))
 					{
-						LOG("Read a message consisting of %d bytes.\n", total_length);
+						LOG("Read a message consisting of %zu bytes (type = %d).\n", total_length, type);
 						const char* offset = (srv->read_buffer.data + total_length);
 						// The message was parsed successfully.
 						memmove(srv->read_buffer.data, offset, srv->read_buffer.size - total_length);
@@ -228,6 +241,12 @@ void mumble_server_callback(EV_P_ ev_io *w, int revents)
 						srv->read_buffer.size -= total_length;
 					}
 			}
+		}
+		else if (result == 0)
+		{
+			fprintf(stderr, "connection closed\n");
+
+			ev_io_stop(EV_A_ w);
 		}
 		else
 		{
@@ -272,7 +291,7 @@ void mumble_server_handshake(EV_P_ ev_io *w, int revents)
 	if (result == 1)
 	{
 		/* SSL handshake complete */
-		LOG("mumble client handshake complete\n");
+		LOG("mumble_server_handshake: handshake complete\n");
 
 		/* Change the callback to the generic, non-handshake one. */
 		ev_io_stop(EV_A_ w);
@@ -281,7 +300,7 @@ void mumble_server_handshake(EV_P_ ev_io *w, int revents)
 		ev_io_start(EV_A_ w);
 
 		mumble_server_send_version(srv);
-		mumble_server_send_authenticate(srv, "testc", "");
+		mumble_server_send_authenticate(srv, "libmumble", "");
 	}
 	else
 	{
@@ -327,7 +346,7 @@ size_t mumble_server_write(mumble_server_t* server, char* data, size_t length)
 	ev_io_set(watcher, watcher->fd, EV_READ | EV_WRITE);
 	ev_io_start(EV_A_ watcher);
 
-	return 0;
+	return length;
 }
 
 int mumble_server_send(mumble_server_t* server,
@@ -335,32 +354,27 @@ int mumble_server_send(mumble_server_t* server,
 {
 	size_t length;
 	size_t result;
+	uint8_t* body;
+	char* buffer;
 	mumble_packet_t packet;
 
 	/* Get the packed size of the packet. */
 	length = mumble_packet_size_packed(packet_type, message);
 
 	/* Construct the packet header. */
-	packet.type = htons(packet_type);
-	packet.length = htonl(length);
-	packet.buffer = (uint8_t*)malloc(length);
+	buffer = (char*)malloc(kMumbleHeaderSize + length);
 
-	if (!packet.buffer)
+	if (!buffer)
 		return 1;
 
-	switch (packet_type)
-	{
-		case MUMBLE_PACKET_VERSION:
-			mumble_proto__version__pack(message, packet.buffer);
-			break;
+	body = (uint8_t*)(buffer + kMumbleHeaderSize);
 
-		case MUMBLE_PACKET_AUTHENTICATE:
-			mumble_proto__authenticate__pack(message, packet.buffer);
-			break;
+	/* Write and pack the protobuf message. */
+	result = mumble_packet_proto_pack(packet_type, message, body);
 
-		default:
-			return 1;
-	}
+	/* Write the packet header. */
+	*(uint16_t*)buffer = htons(packet_type);
+	*(uint32_t*)(buffer + sizeof(uint16_t)) = htonl(length);
 
 	result = mumble_server_write(server, buffer, (length + kMumbleHeaderSize));
 
@@ -374,8 +388,9 @@ int mumble_server_send_version(mumble_server_t* server)
 {
 	MumbleProto__Version version = MUMBLE_PROTO__VERSION__INIT;
 
-	version.version = 66055;
-	version.release = "1.2.7";
+	version.version = 66056;
+	version.has_version = 1;
+	version.release = "libmumble";
 	version.os = "X11";
 	version.os_version = "Linux";
 
@@ -386,11 +401,22 @@ int mumble_server_send_version(mumble_server_t* server)
 int mumble_server_send_authenticate(mumble_server_t* server,
 									const char* username, const char* password)
 {
+	int result;
+	char* user;
+	char* pass;
 	MumbleProto__Authenticate authenticate = MUMBLE_PROTO__AUTHENTICATE__INIT;
 
-	authenticate.username = username;
-	authenticate.password = password;
+	user = strdup(username);
+	pass = strdup(password);
+
+	authenticate.username = user;
+	authenticate.password = pass;
 	authenticate.opus = 1;
 
-	return mumble_server_send(server, MUMBLE_PACKET_AUTHENTICATE, &authenticate);
+	result = mumble_server_send(server, MUMBLE_PACKET_AUTHENTICATE, &authenticate);
+
+	free(user);
+	free(pass);
+
+	return result;
 }

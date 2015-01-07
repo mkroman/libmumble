@@ -70,5 +70,16 @@ typedef enum mumble_packet_type
 size_t mumble_packet_size_packed(mumble_packet_type_t packet_type,
 								 const void* buffer);
 
+/**
+ * Pack a packets protobuf structure to a buffer.
+ *
+ * @param[in] packet_type the packet type.
+ * @param[in] message     a pointer to the protobuf structure.
+ * @param[in] buffer      the buffer to write to.
+ *
+ * @returns the number of bytes written.
+ */
+size_t mumble_packet_proto_pack(mumble_packet_type_t packet_type,
+								void* message, void* buffer);
 
 #endif /* MUMBLE_PROTOCOL_H */

@@ -111,11 +111,21 @@ int mumble_server_connect(mumble_server_t* server, struct mumble_t* context);
 /**
  * Initialize a server struct.
  *
+ * @param[in] context a pointer to an initialized mumble context.
  * @param[in] server a pointer to allocated memory space.
  *
  * @returns zero on success, non-zero otherwise.
  */
-int mumble_server_init(mumble_server_t* server);
+int mumble_server_init(struct mumble_t* context, mumble_server_t* server);
+
+/**
+ * Initialize SSL on a server struct.
+ *
+ * @param[in] server a pointer to a mumble server struct.
+ *
+ * @returns zero on success, non-zero otherwise.
+ */
+int mumble_server_init_ssl(mumble_server_t* server);
 
 int mumble_server_read_message(mumble_server_t* server, uint16_t type, 
 							   uint32_t length);

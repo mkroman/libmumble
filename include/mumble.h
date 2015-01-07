@@ -30,6 +30,8 @@
 #include <stdint.h>
 #include <openssl/ssl.h>
 
+#define MUMBLE_API
+
 #include "server.h"
 
 #define LOG(...)                      \
@@ -70,7 +72,17 @@ typedef struct mumble_t
  *
  * @returns zero on success, non-zero otherwise.
  */
-int mumble_init(mumble_t* context, const char* cert_file, const char* key_file);
+MUMBLE_API int
+mumble_init(mumble_t* context, const char* cert_file, const char* key_file);
+
+/**
+ * Initialize the SSL context of a mumble context.
+ *
+ * @param[in] context a pointer to the mumble context.
+ *
+ * @returns zero on success, non-zero otherwise.
+ */
+int mumble_init_ssl(mumble_t* context);
 
 /**
  * Destroy the mumble context, freeing all associated resources.
