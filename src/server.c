@@ -401,22 +401,12 @@ int mumble_server_send_version(mumble_server_t* server)
 int mumble_server_send_authenticate(mumble_server_t* server,
 									const char* username, const char* password)
 {
-	int result;
-	char* user;
-	char* pass;
 	MumbleProto__Authenticate authenticate = MUMBLE_PROTO__AUTHENTICATE__INIT;
 
-	user = strdup(username);
-	pass = strdup(password);
-
-	authenticate.username = user;
-	authenticate.password = pass;
+	authenticate.username = (char*)username;
+	authenticate.password = (char*)password;
 	authenticate.opus = 1;
 
-	result = mumble_server_send(server, MUMBLE_PACKET_AUTHENTICATE, &authenticate);
-
-	free(user);
-	free(pass);
-
-	return result;
+	return mumble_server_send(server, MUMBLE_PACKET_AUTHENTICATE,
+							  &authenticate);
 }
