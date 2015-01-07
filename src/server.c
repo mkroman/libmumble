@@ -269,8 +269,6 @@ void mumble_server_handshake(EV_P_ ev_io *w, int revents)
 	mumble_server_t* srv = (mumble_server_t*)w->data;
 	int result = SSL_do_handshake(srv->ssl);
 
-	printf("mumble_server_handshake\n");
-
 	if (result == 1)
 	{
 		/* SSL handshake complete */
@@ -335,30 +333,16 @@ size_t mumble_server_write(mumble_server_t* server, char* data, size_t length)
 int mumble_server_send(mumble_server_t* server,
 					   mumble_packet_type_t packet_type, void* message)
 {
-	char* buffer;
-	uint8_t* body;
 	size_t length;
 	size_t result;
-	size_t total_length;
-
-	switch (packet_type)
-	{
-		case MUMBLE_PACKET_VERSION:
-			length = mumble_proto__version__get_packed_size(message);
-			break;
-
-		case MUMBLE_PACKET_AUTHENTICATE:
-			length = mumble_proto__authenticate__get_packed_size(message);
-			break;
-
-		default:
-			return 2;
-	}
-
 	mumble_packet_t packet;
 
+	/* Get the packed size of the packet. */
+	length = mumble_packet_size_packed(packet_type, message);
+
+	/* Construct the packet header. */
 	packet.type = htons(packet_type);
-	packet.length = length;
+	packet.length = htonl(length);
 	packet.buffer = (uint8_t*)malloc(length);
 
 	if (!packet.buffer)
@@ -378,7 +362,7 @@ int mumble_server_send(mumble_server_t* server,
 			return 1;
 	}
 
-	result = mumble_server_write(server, buffer, total_length);
+	result = mumble_server_write(server, buffer, (length + kMumbleHeaderSize));
 
 	if (result > 0)
 		return 0;
