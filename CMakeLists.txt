@@ -1,7 +1,7 @@
 project (libmumble)
 cmake_minimum_required (VERSION 2.8)
 
-set (CMAKE_C_FLAGS ${CMAKE_C_FLAGS} "-std=gnu99")
+set (CMAKE_C_FLAGS ${CMAKE_C_FLAGS} "-std=gnu99 -Wall")
 set (CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 
 include_directories (include/)
@@ -15,12 +15,14 @@ endif ()
 set (libmumble_SOURCE
   src/mumble.c
   src/server.c
+  src/buffer.c
   src/protocol.c
 )
 
 set (libmumble_HEADERS
   include/mumble.h
   include/server.h
+  include/buffer.h
   include/protocol.h)
 
 set (client_SOURCES

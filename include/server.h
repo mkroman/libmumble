@@ -84,7 +84,7 @@ typedef struct simple_buffer
 typedef struct mumble_server_t
 {
 	const char* host;
-	uint32_t port;
+	uint32_t    port;
 	struct sockaddr_storage socket_address;
 	socklen_t socket_addrlen;
 	socket_t fd;

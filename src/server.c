@@ -356,7 +356,6 @@ int mumble_server_send(mumble_server_t* server,
 	size_t result;
 	uint8_t* body;
 	char* buffer;
-	mumble_packet_t packet;
 
 	/* Get the packed size of the packet. */
 	length = mumble_packet_size_packed(packet_type, message);
