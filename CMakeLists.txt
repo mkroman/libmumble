@@ -15,11 +15,13 @@ endif ()
 set (libmumble_SOURCE
   src/mumble.c
   src/server.c
+  src/protocol.c
 )
 
 set (libmumble_HEADERS
   include/mumble.h
-  include/server.h)
+  include/server.h
+  include/protocol.h)
 
 set (client_SOURCES
   src/client.c)

@@ -45,6 +45,8 @@
 #include <openssl/ssl.h>
 #include <ev.h>
 
+#include "protocol.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
@@ -90,6 +92,7 @@ typedef struct mumble_server_t
 	ev_io watcher;
 	struct simple_buffer read_buffer;
 	struct simple_buffer write_buffer;
+	struct mumble_t* ctx;
 	struct mumble_server_t* next;
 } mumble_server_t;
 
@@ -120,7 +123,11 @@ int mumble_server_read_message(mumble_server_t* server, uint16_t type,
 void mumble_server_callback(EV_P_ ev_io *w, int revents);
 void mumble_server_handshake(EV_P_ ev_io *w, int revents);
 
+int mumble_server_send(mumble_server_t* server,
+					   mumble_packet_type_t packet_type, void* message);
 int mumble_server_send_version(mumble_server_t* server);
+int mumble_server_send_authenticate(mumble_server_t* server, 
+									const char* username, const char* password);
 
 #ifdef __cplusplus
 }

@@ -15,12 +15,21 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library.
  */
+#include <stdint.h>
+#include <stdlib.h>
 
 #pragma once
 #ifndef MUMBLE_PROTOCOL_H
 #define MUMBLE_PROTOCOL_H
 
-enum mumble_packet_type
+typedef struct mumble_packet
+{
+	uint16_t type;
+	uint32_t length;
+	uint8_t* buffer;
+} mumble_packet_t;
+
+typedef enum mumble_packet_type
 {
 	MUMBLE_PACKET_VERSION               = 0,
 	MUMBLE_PACKET_UDPTUNNEL             = 1,
@@ -48,6 +57,18 @@ enum mumble_packet_type
 	MUMBLE_PACKET_REQUEST_BLOB          = 23,
 	MUMBLE_PACKET_SERVER_CONFIG         = 24,
 	MUMBLE_PACKET_SUGGEST_CONFIG        = 25
-};
+} mumble_packet_type_t;
+
+/**
+ * Get the packed size of the protobuf packet.
+ *
+ * @param[in] packet_type the packet type.
+ * @param[in] buffer      a pointer to the protobuf message.
+ *
+ * @returns the size when packed, or zero if unknown packet type.
+ */
+size_t mumble_packet_size_packed(mumble_packet_type_t packet_type,
+								 const void* buffer);
+
 
 #endif /* MUMBLE_PROTOCOL_H */

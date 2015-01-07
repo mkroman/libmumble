@@ -117,6 +117,7 @@ int mumble_connect(mumble_t* context, const char* host, uint32_t port)
 		return 1;
 	}
 
+	srv->ctx = context;
 	srv->host = host;
 	srv->port = port;
 

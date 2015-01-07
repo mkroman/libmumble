@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <assert.h>
 
 #include "mumble.h"
 #include "server.h"
@@ -160,31 +161,72 @@ void mumble_server_callback(EV_P_ ev_io *w, int revents)
 	int result;
 	uint16_t type;
 	uint32_t length;
+	size_t total_length;
 	mumble_server_t* srv = (mumble_server_t*)w->data;
 
 	if (revents & EV_WRITE)
 	{
 		/* Write any pending data. */
+		size_t buffer_size = srv->write_buffer.size;
+		size_t written;
 		
+		assert(buffer_size > 0);
+		written = SSL_write(srv->ssl, srv->write_buffer.data, buffer_size);
+
+		assert(written > 0);
+
+		if (written > 0)
+		{
+			char* buffer_offset = (char*)(srv->write_buffer.data + written);
+			printf("Wrote %d bytes.\n", written);
+
+			srv->write_buffer.size -= written;
+			memmove(srv->write_buffer.data, buffer_offset,
+					srv->write_buffer.size);
+		}
+
+		if (srv->write_buffer.size == 0)
+		{
+			ev_io_stop(EV_A_ w);
+			ev_io_set(w, srv->fd, EV_READ);
+			ev_io_start(EV_A_ w);
+		}
 	}
 	else /* Assume EV_READ. */
 	{
+		if (srv->read_buffer.size >= kMumbleBufferSize)
+		{
+			ERR("Received data exceeds read buffer size\n");
+		}
+
 		result = SSL_read(srv->ssl, (srv->read_buffer.data + 
-									 srv->read_buffer.pos), 512);
+									 srv->read_buffer.pos),
+						  (kMumbleBufferSize - srv->read_buffer.size));
 
 		if (result > 0)
 		{
 			srv->read_buffer.pos += (size_t)result;
 			srv->read_buffer.size += (size_t)result;
 
+			printf("Read %d bytes.\n", result);
+
 			if (srv->read_buffer.size > kMumbleHeaderSize)
 			{
 				type = ntohs(*(uint16_t*)srv->read_buffer.data);
 				length = ntohl(*(uint32_t*)(srv->read_buffer.data +
 											sizeof(uint16_t)));
+				total_length = length + kMumbleHeaderSize;
 
-				if (srv->read_buffer.size >= (length + kMumbleHeaderSize))
-					mumble_server_read_message(srv, type, length);
+				if (srv->read_buffer.size >= total_length)
+					if (mumble_server_read_message(srv, type, length))
+					{
+						LOG("Read a message consisting of %d bytes.\n", total_length);
+						const char* offset = (srv->read_buffer.data + total_length);
+						// The message was parsed successfully.
+						memmove(srv->read_buffer.data, offset, srv->read_buffer.size - total_length);
+						srv->read_buffer.pos -= total_length;
+						srv->read_buffer.size -= total_length;
+					}
 			}
 		}
 		else
@@ -227,6 +269,8 @@ void mumble_server_handshake(EV_P_ ev_io *w, int revents)
 	mumble_server_t* srv = (mumble_server_t*)w->data;
 	int result = SSL_do_handshake(srv->ssl);
 
+	printf("mumble_server_handshake\n");
+
 	if (result == 1)
 	{
 		/* SSL handshake complete */
@@ -235,8 +279,11 @@ void mumble_server_handshake(EV_P_ ev_io *w, int revents)
 		/* Change the callback to the generic, non-handshake one. */
 		ev_io_stop(EV_A_ w);
 		ev_set_cb(w, mumble_server_callback);
-		ev_io_set(w, srv->fd, EV_READ);
+		ev_io_set(w, w->fd, EV_READ);
 		ev_io_start(EV_A_ w);
+
+		mumble_server_send_version(srv);
+		mumble_server_send_authenticate(srv, "testc", "");
 	}
 	else
 	{
@@ -250,14 +297,116 @@ void mumble_server_handshake(EV_P_ ev_io *w, int revents)
 	}
 }
 
+/**
+ * Write data to the connections outgoing buffer.
+ *
+ * @param[in] server a pointer to the server structure.
+ * @param[in] data   a pointer to the data to write to the buffer.
+ * @param[in] length the number of bytes contained in `data`.
+ *
+ * @returns the number of bytes written.
+ */
+size_t mumble_server_write(mumble_server_t* server, char* data, size_t length)
+{
+	if ((kMumbleBufferSize - server->write_buffer.size) < length)
+	{
+		fprintf(stderr, "mumble_server_write: not enough memory in the "
+				"outgoing buffer.\n");
+
+		return 0;
+	}
+
+	char* buffer = (char*)(server->write_buffer.data +
+						   server->write_buffer.pos);
+	memcpy(buffer, data, length);
+	server->write_buffer.size += length;
+
+	ev_io* watcher = &server->watcher;
+	struct ev_loop* loop = server->ctx->loop;
+
+	// Mark the watcher that we want to read.
+	ev_io_stop(EV_A_ watcher);
+	ev_io_set(watcher, watcher->fd, EV_READ | EV_WRITE);
+	ev_io_start(EV_A_ watcher);
+
+	return 0;
+}
+
+int mumble_server_send(mumble_server_t* server,
+					   mumble_packet_type_t packet_type, void* message)
+{
+	char* buffer;
+	uint8_t* body;
+	size_t length;
+	size_t result;
+	size_t total_length;
+
+	switch (packet_type)
+	{
+		case MUMBLE_PACKET_VERSION:
+			length = mumble_proto__version__get_packed_size(message);
+			break;
+
+		case MUMBLE_PACKET_AUTHENTICATE:
+			length = mumble_proto__authenticate__get_packed_size(message);
+			break;
+
+		default:
+			return 2;
+	}
+
+	mumble_packet_t packet;
+
+	packet.type = htons(packet_type);
+	packet.length = length;
+	packet.buffer = (uint8_t*)malloc(length);
+
+	if (!packet.buffer)
+		return 1;
+
+	switch (packet_type)
+	{
+		case MUMBLE_PACKET_VERSION:
+			mumble_proto__version__pack(message, packet.buffer);
+			break;
+
+		case MUMBLE_PACKET_AUTHENTICATE:
+			mumble_proto__authenticate__pack(message, packet.buffer);
+			break;
+
+		default:
+			return 1;
+	}
+
+	result = mumble_server_write(server, buffer, total_length);
+
+	if (result > 0)
+		return 0;
+
+	return 1;
+}
+
 int mumble_server_send_version(mumble_server_t* server)
 {
 	MumbleProto__Version version = MUMBLE_PROTO__VERSION__INIT;
 
 	version.version = 66055;
-	version.release = "1.2.8";
+	version.release = "1.2.7";
 	version.os = "X11";
 	version.os_version = "Linux";
 
-	return 0;
+	return mumble_server_send(server, MUMBLE_PACKET_VERSION,
+							  &version);
+}
+
+int mumble_server_send_authenticate(mumble_server_t* server,
+									const char* username, const char* password)
+{
+	MumbleProto__Authenticate authenticate = MUMBLE_PROTO__AUTHENTICATE__INIT;
+
+	authenticate.username = username;
+	authenticate.password = password;
+	authenticate.opus = 1;
+
+	return mumble_server_send(server, MUMBLE_PACKET_AUTHENTICATE, &authenticate);
 }
