@@ -38,11 +38,35 @@ size_t mumble_buffer_write(mumble_buffer_t* buffer, const uint8_t* data,
 
 	memcpy(ptr, data, size);
 
+	buffer->size += size;
+
 	return size;
 }
 
 size_t mumble_buffer_read(mumble_buffer_t* buffer, uint8_t* output,
 						  size_t size)
 {
+	if (size == 0)
+		return 0;
+
+
 	return 0;
+}
+
+size_t mumble_buffer_resize(mumble_buffer_t* buffer, size_t size)
+{
+	void* ptr;
+
+	if (size == 0 || size == buffer->capacity || size > kMumbleBufferSizeCap)
+		return buffer->capacity;
+
+	ptr = realloc(buffer->ptr, size);
+	
+	if (ptr != NULL)
+	{
+		buffer->ptr = ptr;
+		buffer->capacity = size;
+	}
+
+	return buffer->capacity;
 }

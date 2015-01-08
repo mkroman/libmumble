@@ -22,6 +22,7 @@
 #define MUMBLE_BUFFER_H
 
 static const size_t kMumbleBufferSize = 1024 * 8;
+static const size_t kMumbleBufferSizeCap = 1024 * 1024 * 8;
 
 typedef struct mumble_buffer
 {
@@ -63,5 +64,15 @@ size_t mumble_buffer_write(mumble_buffer_t* buffer, const uint8_t* data,
  */
 size_t mumble_buffer_read(mumble_buffer_t* buffer, uint8_t* output,
 						  size_t size);
+
+/**
+ * Resize the buffer.
+ *
+ * @param[in] buffer a pointer to the buffer to resize.
+ * @param[in] size   the new buffer size.
+ *
+ * @returns the resulting size of the buffer.
+ */
+size_t mumble_buffer_resize(mumble_buffer_t* buffer, size_t size);
 
 #endif /* MUMBLE_BUFFER_H */
