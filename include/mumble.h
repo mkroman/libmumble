@@ -56,8 +56,9 @@ typedef struct mumble_t
 	int num_servers;
 	SSL_CTX* ssl_ctx;
 	struct ev_loop* loop;
-	const char* certificate_file;
+	const char* cert_file;
 	const char* key_file;
+	char buffer[512];
 	mumble_server_t* servers;
 } mumble_t;
 

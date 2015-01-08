@@ -45,6 +45,7 @@
 #include <openssl/ssl.h>
 #include <ev.h>
 
+#include "buffer.h"
 #include "protocol.h"
 
 #ifdef __cplusplus
@@ -58,11 +59,6 @@ typedef int socket_t;
 #endif
 
 /**
- * The default buffer size.
- */
-static const size_t kMumbleBufferSize = 1024;
-
-/**
  * The mumble message header length.
  */
 static const size_t kMumbleHeaderSize = (sizeof(uint16_t) + sizeof(uint32_t));
@@ -74,13 +70,6 @@ static const char* kMumbleClientName = "libmumble (github.com/mkroman/libmumble)
 
 struct mumble_t;
 
-typedef struct simple_buffer
-{
-	char data[kMumbleBufferSize];
-	size_t pos;
-	size_t size;
-} simple_buffer_t;
-
 typedef struct mumble_server_t
 {
 	const char* host;
@@ -90,8 +79,8 @@ typedef struct mumble_server_t
 	socket_t fd;
 	SSL* ssl;
 	ev_io watcher;
-	struct simple_buffer read_buffer;
-	struct simple_buffer write_buffer;
+	mumble_buffer_t rbuffer;
+	mumble_buffer_t wbuffer;
 	struct mumble_t* ctx;
 	struct mumble_server_t* next;
 } mumble_server_t;

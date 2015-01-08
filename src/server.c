@@ -5,6 +5,7 @@
 
 #include "mumble.h"
 #include "server.h"
+#include "buffer.h"
 #include "protocol.h"
 #include "Mumble.pb-c.h"
 
@@ -45,12 +46,8 @@ int mumble_server_init(mumble_t* context, mumble_server_t* server)
 		return 1;
 
 	server->host = 0;
-	server->read_buffer.data[0] = 0;
-	server->read_buffer.pos = 0;
-	server->read_buffer.size = 0;
-	server->write_buffer.data[0] = 0;
-	server->write_buffer.pos = 0;
-	server->write_buffer.size = 0;
+	mumble_buffer_init(&server->wbuffer);
+	mumble_buffer_init(&server->rbuffer);
 	server->ctx = context;
 
 	return 0;
@@ -177,27 +174,22 @@ void mumble_server_callback(EV_P_ ev_io *w, int revents)
 	if (revents & EV_WRITE)
 	{
 		/* Write any pending data. */
-		size_t buffer_size = srv->write_buffer.size;
-		size_t written;
-		
+		size_t sent;
+		size_t buffer_size = srv->wbuffer.size;
+
 		assert(buffer_size > 0);
-		written = SSL_write(srv->ssl, srv->write_buffer.data, buffer_size);
+		sent = SSL_write(srv->ssl, srv->wbuffer.ptr, buffer_size);
+		assert(sent > 0);
 
-		assert(written > 0);
-
-		if (written > 0)
+		if (sent > 0)
 		{
-			char* buffer_offset = (char*)(srv->write_buffer.data + written);
-			printf("Wrote %zu bytes.\n", written);
-
-			srv->write_buffer.size -= written;
-			srv->write_buffer.pos -= written;
-			memmove(srv->write_buffer.data, buffer_offset,
-					srv->write_buffer.size);
+			printf("Sent %zu bytes to the remote peer.\n", sent);
+			mumble_buffer_read(&srv->wbuffer, NULL, sent);
 		}
 
-		if (srv->write_buffer.size == 0)
+		if (srv->wbuffer.size == 0)
 		{
+			/* If the buffer is empty, mark the io watcher. */
 			ev_io_stop(EV_A_ w);
 			ev_io_set(w, srv->fd, EV_READ);
 			ev_io_start(EV_A_ w);
@@ -205,41 +197,31 @@ void mumble_server_callback(EV_P_ ev_io *w, int revents)
 	}
 	else /* Assume EV_READ. */
 	{
-		if (srv->read_buffer.size >= kMumbleBufferSize)
-		{
-			ERR("Received data exceeds read buffer size\n");
-		}
-
-		LOG("Remaining space in buffer: %zu\n", (kMumbleBufferSize - srv->read_buffer.size));
-
-		result = SSL_read(srv->ssl, (srv->read_buffer.data + 
-									 srv->read_buffer.pos),
-						  (kMumbleBufferSize - srv->read_buffer.size));
+		mumble_t* ctx = srv->ctx;
+		result = SSL_read(srv->ssl, ctx->buffer, sizeof(ctx->buffer));
 
 		if (result > 0)
 		{
-			srv->read_buffer.pos += (size_t)result;
-			srv->read_buffer.size += (size_t)result;
+			printf("Received %d bytes.\n", result);
+			mumble_buffer_write(&srv->rbuffer, (uint8_t*)ctx->buffer, result);
 
-			printf("Read %d bytes.\n", result);
-
-			if (srv->read_buffer.size > kMumbleHeaderSize)
+			while (srv->rbuffer.size > kMumbleHeaderSize)
 			{
-				type = ntohs(*(uint16_t*)srv->read_buffer.data);
-				length = ntohl(*(uint32_t*)(srv->read_buffer.data +
+				type = ntohs(*(uint16_t*)srv->rbuffer.ptr);
+				length = ntohl(*(uint32_t*)(srv->rbuffer.ptr +
 											sizeof(uint16_t)));
 				total_length = length + kMumbleHeaderSize;
 
-				while (srv->read_buffer.size >= total_length)
+				while (srv->rbuffer.size >= total_length)
+				{
 					if (mumble_server_read_message(srv, type, length))
 					{
 						LOG("Read a message consisting of %zu bytes (type = %d).\n", total_length, type);
-						const char* offset = (srv->read_buffer.data + total_length);
-						// The message was parsed successfully.
-						memmove(srv->read_buffer.data, offset, srv->read_buffer.size - total_length);
-						srv->read_buffer.pos -= total_length;
-						srv->read_buffer.size -= total_length;
+
+						/* Discard the data from the buffer. */
+						mumble_buffer_read(&srv->rbuffer, NULL, total_length);
 					}
+				}
 			}
 		}
 		else if (result == 0)
@@ -255,14 +237,40 @@ void mumble_server_callback(EV_P_ ev_io *w, int revents)
 	}
 }
 
+/**
+ * Write data to the connections outgoing buffer.
+ *
+ * @param[in] server a pointer to the server structure.
+ * @param[in] data   a pointer to the data to write to the buffer.
+ * @param[in] length the number of bytes contained in `data`.
+ *
+ * @returns the number of bytes written.
+ */
+size_t mumble_server_write(mumble_server_t* server, char* data, size_t length)
+{
+	size_t result;
+
+	result = mumble_buffer_write(&server->wbuffer, (uint8_t*)data, length);
+
+	ev_io* watcher = &server->watcher;
+	struct ev_loop* loop = server->ctx->loop;
+
+	// Mark the watcher that we want to read.
+	ev_io_stop(EV_A_ watcher);
+	ev_io_set(watcher, watcher->fd, EV_READ | EV_WRITE);
+	ev_io_start(EV_A_ watcher);
+
+	return result;
+}
+
 int mumble_server_read_message(mumble_server_t* server, uint16_t type,
 							   uint32_t length)
 {
-	int message_size = kMumbleHeaderSize + length;
+	size_t message_size = kMumbleHeaderSize + length;
 	const uint8_t* data =
-		(const uint8_t*)server->read_buffer.data + kMumbleHeaderSize;
+		(const uint8_t*)server->rbuffer.ptr + kMumbleHeaderSize;
 
-	if (server->read_buffer.size < message_size)
+	if (server->rbuffer.size < message_size)
 		return 0;
 
 	switch (type)
@@ -312,41 +320,6 @@ void mumble_server_handshake(EV_P_ ev_io *w, int revents)
 					err);
 		}
 	}
-}
-
-/**
- * Write data to the connections outgoing buffer.
- *
- * @param[in] server a pointer to the server structure.
- * @param[in] data   a pointer to the data to write to the buffer.
- * @param[in] length the number of bytes contained in `data`.
- *
- * @returns the number of bytes written.
- */
-size_t mumble_server_write(mumble_server_t* server, char* data, size_t length)
-{
-	if ((kMumbleBufferSize - server->write_buffer.size) < length)
-	{
-		fprintf(stderr, "mumble_server_write: not enough memory in the "
-				"outgoing buffer.\n");
-
-		return 0;
-	}
-
-	char* buffer = (char*)(server->write_buffer.data +
-						   server->write_buffer.pos);
-	memcpy(buffer, data, length);
-	server->write_buffer.size += length;
-
-	ev_io* watcher = &server->watcher;
-	struct ev_loop* loop = server->ctx->loop;
-
-	// Mark the watcher that we want to read.
-	ev_io_stop(EV_A_ watcher);
-	ev_io_set(watcher, watcher->fd, EV_READ | EV_WRITE);
-	ev_io_start(EV_A_ watcher);
-
-	return length;
 }
 
 int mumble_server_send(mumble_server_t* server,

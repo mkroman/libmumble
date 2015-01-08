@@ -23,7 +23,7 @@
 #include "mumble.h"
 #include "server.h"
 
-int mumble_init(mumble_t* context, const char* certificate_file,
+int mumble_init(mumble_t* context, const char* cert_file,
 				const char* key_file)
 {
 #ifdef _WIN32
@@ -42,7 +42,7 @@ int mumble_init(mumble_t* context, const char* certificate_file,
 	context->num_servers = 0;
 
 	context->key_file = key_file;
-	context->certificate_file = certificate_file;
+	context->cert_file = cert_file;
 
 	if (mumble_init_ssl(context) != 0)
 	{
@@ -73,10 +73,10 @@ int mumble_init_ssl(mumble_t* context)
 	}
 
 	if (!SSL_CTX_use_certificate_chain_file(context->ssl_ctx,
-											context->certificate_file))
+											context->cert_file))
 	{
 		fprintf(stderr, "SSL_CTX_use_certificate_chain_file failed (%s)\n",
-				context->certificate_file);
+				context->cert_file);
 
 		return 1;
 	}

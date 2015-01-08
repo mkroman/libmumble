@@ -15,6 +15,15 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library.
  */
+
+/**
+ * @file buffer.h
+ * @author Mikkel Kroman
+ * @date 08 Jun 2015
+ * @brief Provide a buffer stored in memory with fast read and write access.
+ */
+
+#include <stddef.h>
 #include <stdint.h>
 
 #pragma once
@@ -24,7 +33,7 @@
 static const size_t kMumbleBufferSize = 1024 * 8;
 static const size_t kMumbleBufferSizeCap = 1024 * 1024 * 8;
 
-typedef struct mumble_buffer
+typedef struct mumble_buffer_t
 {
 	uint8_t* ptr;
 	size_t capacity;
@@ -54,7 +63,10 @@ size_t mumble_buffer_write(mumble_buffer_t* buffer, const uint8_t* data,
 						   size_t size);
 
 /**
- * Read data from the buffer.
+ * @brief Read data from the buffer into the `output` buffer.
+ *
+ * If output is `NULL`, then the number of bytes specified in `size` is simply
+ *   discarded from the buffer.
  *
  * @param[in] buffer the buffer to read from.
  * @param[in] output a buffer for storing the data that is read.

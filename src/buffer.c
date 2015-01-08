@@ -25,13 +25,14 @@ int mumble_buffer_init(mumble_buffer_t* buffer)
 size_t mumble_buffer_write(mumble_buffer_t* buffer, const uint8_t* data,
 						   size_t size)
 {
+	size_t buffer_capacity = buffer->capacity;
 	assert(buffer->pos + size > buffer->capacity);
 
 	if ((buffer->pos + size) > buffer->capacity)
 	{
-		/* The data exceeds the boundaries of the buffer. */
-
-		return 0;
+		/* The data exceeds the boundaries of the buffer, try to resize. */
+		if (mumble_buffer_resize(buffer, buffer->capacity + size) == buffer_capacity)
+			return 0;
 	}
 
 	uint8_t* ptr = (uint8_t*)(buffer->ptr + buffer->pos);
@@ -39,6 +40,7 @@ size_t mumble_buffer_write(mumble_buffer_t* buffer, const uint8_t* data,
 	memcpy(ptr, data, size);
 
 	buffer->size += size;
+	buffer->pos += size;
 
 	return size;
 }
@@ -49,8 +51,17 @@ size_t mumble_buffer_read(mumble_buffer_t* buffer, uint8_t* output,
 	if (size == 0)
 		return 0;
 
+	if (size > buffer->capacity)
+		size = buffer->capacity;
 
-	return 0;
+	if (output != NULL)
+		memcpy(output, buffer->ptr, size);
+
+	buffer->size -= size;
+	buffer->pos -= size;
+	memmove(buffer->ptr, (buffer->ptr + size), buffer->size);
+
+	return size;
 }
 
 size_t mumble_buffer_resize(mumble_buffer_t* buffer, size_t size)
