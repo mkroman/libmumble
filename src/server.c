@@ -53,6 +53,38 @@ int mumble_server_init(mumble_t* context, mumble_server_t* server)
 	return 0;
 }
 
+int mumble_server_init_ssl(mumble_server_t* server)
+{
+	int result;
+
+	/* Initialize SSL for the given server. */
+	server->ssl = SSL_new(server->ctx->ssl_ctx);
+
+	if (server->ssl == NULL)
+	{
+		fprintf(stderr, "mumble_server_connect: could not create SSL object\n");
+
+		return 1;
+	}
+
+	if (!SSL_set_fd(server->ssl, server->fd))
+	{
+		fprintf(stderr, "could not set file descriptor\n");
+
+		return 1;
+	}
+
+	if ((result = SSL_connect(server->ssl)) != -1)
+	{
+		fprintf(stderr, "SSL_connect: %d (%d)\n", result,
+				SSL_get_error(server->ssl, result));
+
+		return 1;
+	}
+
+	return 0;
+}
+
 int mumble_server_connect(mumble_server_t* server, struct mumble_t* context)
 {
 	int result;
@@ -131,44 +163,9 @@ int mumble_server_connect(mumble_server_t* server, struct mumble_t* context)
 	return result;
 }
 
-int mumble_server_init_ssl(mumble_server_t* server)
-{
-	int result;
-
-	/* Initialize SSL for the given server. */
-	server->ssl = SSL_new(server->ctx->ssl_ctx);
-
-	if (server->ssl == NULL)
-	{
-		fprintf(stderr, "mumble_server_connect: could not create SSL object\n");
-
-		return 1;
-	}
-
-	if (!SSL_set_fd(server->ssl, server->fd))
-	{
-		fprintf(stderr, "could not set file descriptor\n");
-
-		return 1;
-	}
-
-	if ((result = SSL_connect(server->ssl)) != -1)
-	{
-		fprintf(stderr, "SSL_connect: %d (%d)\n", result,
-				SSL_get_error(server->ssl, result));
-
-		return 1;
-	}
-
-	return 0;
-}
-
 void mumble_server_callback(EV_P_ ev_io *w, int revents)
 {
 	int result;
-	uint16_t type;
-	uint32_t length;
-	size_t total_length;
 	mumble_server_t* srv = (mumble_server_t*)w->data;
 
 	if (revents & EV_WRITE)
@@ -205,24 +202,10 @@ void mumble_server_callback(EV_P_ ev_io *w, int revents)
 			printf("Received %d bytes.\n", result);
 			mumble_buffer_write(&srv->rbuffer, (uint8_t*)ctx->buffer, result);
 
-			while (srv->rbuffer.size > kMumbleHeaderSize)
-			{
-				type = ntohs(*(uint16_t*)srv->rbuffer.ptr);
-				length = ntohl(*(uint32_t*)(srv->rbuffer.ptr +
-											sizeof(uint16_t)));
-				total_length = length + kMumbleHeaderSize;
+			if (srv->rbuffer.size > kMumbleHeaderSize)
+				while (mumble_server_read_packet(srv))
+					;;
 
-				while (srv->rbuffer.size >= total_length)
-				{
-					if (mumble_server_read_message(srv, type, length))
-					{
-						LOG("Read a message consisting of %zu bytes (type = %d).\n", total_length, type);
-
-						/* Discard the data from the buffer. */
-						mumble_buffer_read(&srv->rbuffer, NULL, total_length);
-					}
-				}
-			}
 		}
 		else if (result == 0)
 		{
@@ -235,6 +218,36 @@ void mumble_server_callback(EV_P_ ev_io *w, int revents)
 			fprintf(stderr, "SSL_read failed: %d\n", result);
 		}
 	}
+}
+
+int mumble_server_read_packet(mumble_server_t* server)
+{
+	uint16_t type;
+	uint32_t length;
+	size_t packet_length;
+
+	if (server->rbuffer.size > kMumbleHeaderSize)
+	{
+		type = ntohs(*(uint16_t*)server->rbuffer.ptr);
+		length = ntohl(*(uint32_t*)(server->rbuffer.ptr + sizeof(uint16_t)));
+		packet_length = length + kMumbleHeaderSize;
+
+		if (server->rbuffer.size >= packet_length)
+		{
+			if (mumble_server_delegate_packet(server, type, length))
+			{
+				LOG("Read a packet (size = %zu bytes, type = %d).\n",
+					packet_length, type);
+
+				/* Discard the data from the buffer. */
+				mumble_buffer_read(&server->rbuffer, NULL, packet_length);
+
+				return 1;
+			}
+		}
+	}
+
+	return 0;
 }
 
 /**
@@ -263,22 +276,18 @@ size_t mumble_server_write(mumble_server_t* server, char* data, size_t length)
 	return result;
 }
 
-int mumble_server_read_message(mumble_server_t* server, uint16_t type,
-							   uint32_t length)
+int mumble_server_delegate_packet(mumble_server_t* server, uint16_t type,
+								  uint32_t length)
 {
-	size_t message_size = kMumbleHeaderSize + length;
-	const uint8_t* data =
+	const uint8_t* body =
 		(const uint8_t*)server->rbuffer.ptr + kMumbleHeaderSize;
-
-	if (server->rbuffer.size < message_size)
-		return 0;
 
 	switch (type)
 	{
 		case MUMBLE_PACKET_VERSION:
 			{
 				MumbleProto__Version* version =
-						mumble_proto__version__unpack(NULL, length, data);
+						mumble_proto__version__unpack(NULL, length, body);
 
 				printf("Received version message: %s - %s (%s)\n",
 					   version->release, version->os, version->os_version);
@@ -337,7 +346,7 @@ int mumble_server_send(mumble_server_t* server,
 	buffer = (char*)malloc(kMumbleHeaderSize + length);
 
 	if (!buffer)
-		return 1;
+		return 0;
 
 	body = (uint8_t*)(buffer + kMumbleHeaderSize);
 
@@ -349,6 +358,9 @@ int mumble_server_send(mumble_server_t* server,
 	*(uint32_t*)(buffer + sizeof(uint16_t)) = htonl(length);
 
 	result = mumble_server_write(server, buffer, (length + kMumbleHeaderSize));
+
+	/* Free the packet buffer. */
+	free(buffer);
 
 	if (result > 0)
 		return 0;

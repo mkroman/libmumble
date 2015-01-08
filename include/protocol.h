@@ -22,14 +22,7 @@
 #ifndef MUMBLE_PROTOCOL_H
 #define MUMBLE_PROTOCOL_H
 
-typedef struct mumble_packet
-{
-	uint16_t type;
-	uint32_t length;
-	uint8_t* buffer;
-} mumble_packet_t;
-
-typedef enum mumble_packet_type
+typedef enum mumble_packet_type_t
 {
 	MUMBLE_PACKET_VERSION               = 0,
 	MUMBLE_PACKET_UDPTUNNEL             = 1,

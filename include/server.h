@@ -73,7 +73,7 @@ struct mumble_t;
 typedef struct mumble_server_t
 {
 	const char* host;
-	uint32_t    port;
+	uint32_t port;
 	struct sockaddr_storage socket_address;
 	socklen_t socket_addrlen;
 	socket_t fd;
@@ -119,12 +119,51 @@ int mumble_server_init_ssl(mumble_server_t* server);
 int mumble_server_read_message(mumble_server_t* server, uint16_t type, 
 							   uint32_t length);
 
+int mumble_server_delegate_packet(mumble_server_t* server, uint16_t type,
+								  uint32_t length);
+
+int mumble_server_read_packet(mumble_server_t* server);
+
+/**
+ * @internal Called by the event loop to handle data.
+ */
 void mumble_server_callback(EV_P_ ev_io *w, int revents);
+
+/**
+ * @internal Called by the event loop when establishing a secure connection.
+ */
 void mumble_server_handshake(EV_P_ ev_io *w, int revents);
 
+/**
+ * Send a packet to the server.
+ *
+ * @param[in] server a pointer to the server.
+ * @param[in] packet_type the packet type.
+ * @param[in] message a pointer to an initialized protobuf struct.
+ *
+ * @returns one if successful, zero otherwise.
+ */
 int mumble_server_send(mumble_server_t* server,
 					   mumble_packet_type_t packet_type, void* message);
+
+/**
+ * Send a version packet to the server.
+ *
+ * @param[in] server a pointer to the server.
+ *
+ * @returns one if successful, zero otherwise.
+ */
 int mumble_server_send_version(mumble_server_t* server);
+
+/**
+ * Send a authentication packet to the server.
+ *
+ * @param[in] server a pointer to the server.
+ * @param[in] username the client username.
+ * @param[in] password the client password.
+ *
+ * @returns one if successful, zero otherwise.
+ */
 int mumble_server_send_authenticate(mumble_server_t* server, 
 									const char* username, const char* password);
 
