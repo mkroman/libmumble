@@ -101,19 +101,19 @@ int mumble_init_ssl(mumble_t* context)
 
 int mumble_destroy(mumble_t* context)
 {
+	// Free up server resources.
+	for (struct mumble_server_t* srv = context->servers;
+		 srv != NULL; srv = srv->next)
+	{
+		mumble_server_destroy(srv);
+	}
+
 	// Free SSL resources.
 	SSL_CTX_free(context->ssl_ctx);
-	
+
 	// Free event resources.
 	if (context->loop)
 		ev_loop_destroy(context->loop);
-
-	// Close any file descriptors.
-	for (struct mumble_server_t* srv = context->servers;
-		 srv->next != NULL; srv = srv->next)
-	{
-		close(srv->fd);
-	}
 
 	return 0;
 }

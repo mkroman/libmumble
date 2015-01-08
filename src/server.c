@@ -1,6 +1,7 @@
 #include <stdio.h>
-#include <fcntl.h>
 #include <errno.h>
+#include <unistd.h>
+#include <fcntl.h>
 #include <assert.h>
 
 #include "mumble.h"
@@ -46,9 +47,9 @@ int mumble_server_init(mumble_t* context, mumble_server_t* server)
 		return 1;
 
 	server->host = 0;
+	server->ctx = context;
 	mumble_buffer_init(&server->wbuffer);
 	mumble_buffer_init(&server->rbuffer);
-	server->ctx = context;
 
 	return 0;
 }
@@ -85,6 +86,17 @@ int mumble_server_init_ssl(mumble_server_t* server)
 	return 0;
 }
 
+void mumble_server_destroy(mumble_server_t* server)
+{
+	close(server->fd);
+	SSL_free(server->ssl);
+
+	free(server->wbuffer.ptr);
+	free(server->rbuffer.ptr);
+
+	ev_io_stop(server->ctx->loop, &server->watcher);
+}
+
 int mumble_server_connect(mumble_server_t* server, struct mumble_t* context)
 {
 	int result;
@@ -107,6 +119,7 @@ int mumble_server_connect(mumble_server_t* server, struct mumble_t* context)
 	memset(&hints, 0, sizeof hints);
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_protocol = IPPROTO_TCP;
+	hints.ai_flags = 0;
 	hints.ai_socktype = SOCK_STREAM;
 
 	result = getaddrinfo(server->host, port_buffer, &hints, &address);
@@ -234,7 +247,7 @@ int mumble_server_read_packet(mumble_server_t* server)
 
 		if (server->rbuffer.size >= packet_length)
 		{
-			if (mumble_server_delegate_packet(server, type, length))
+			if (mumble_server_handle_packet(server, type, length))
 			{
 				LOG("Read a packet (size = %zu bytes, type = %d).\n",
 					packet_length, type);
@@ -276,7 +289,7 @@ size_t mumble_server_write(mumble_server_t* server, char* data, size_t length)
 	return result;
 }
 
-int mumble_server_delegate_packet(mumble_server_t* server, uint16_t type,
+int mumble_server_handle_packet(mumble_server_t* server, uint16_t type,
 								  uint32_t length)
 {
 	const uint8_t* body =

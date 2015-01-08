@@ -108,6 +108,13 @@ int mumble_server_connect(mumble_server_t* server, struct mumble_t* context);
 int mumble_server_init(struct mumble_t* context, mumble_server_t* server);
 
 /**
+ * Destroy a server struct.
+ *
+ * @param[in] server a pointer to the server struct to destroy.
+ */
+void mumble_server_destroy(mumble_server_t* server);
+
+/**
  * Initialize SSL on a server struct.
  *
  * @param[in] server a pointer to a mumble server struct.
@@ -116,21 +123,39 @@ int mumble_server_init(struct mumble_t* context, mumble_server_t* server);
  */
 int mumble_server_init_ssl(mumble_server_t* server);
 
-int mumble_server_read_message(mumble_server_t* server, uint16_t type, 
-							   uint32_t length);
+/**
+ * Parse and handle a packet received from a server.
+ *
+ * @param[in] server a pointer to the server.
+ * @param[in] type   the packet type.
+ * @param[in] length the packet length.
+ *
+ * @returns one if successfully handled, zero otherwise.
+ */
+int mumble_server_handle_packet(mumble_server_t* server, uint16_t type,
+								uint32_t length);
 
-int mumble_server_delegate_packet(mumble_server_t* server, uint16_t type,
-								  uint32_t length);
-
+/**
+ * Cut the data received from a server into packets and handle them as needed.
+ *
+ * @param[in] server a pointer to the server.
+ *
+ * @returns one if a packet was received, zero otherwise.,
+ */
 int mumble_server_read_packet(mumble_server_t* server);
 
 /**
- * @internal Called by the event loop to handle data.
+ * Called by the event loop when the server connection is readable or writable.
+ *
+ * @internal
  */
 void mumble_server_callback(EV_P_ ev_io *w, int revents);
 
 /**
- * @internal Called by the event loop when establishing a secure connection.
+ * Called by the event loop when establishing a secure connection in order to
+ * perform the handshake.
+ *
+ * @internal
  */
 void mumble_server_handshake(EV_P_ ev_io *w, int revents);
 

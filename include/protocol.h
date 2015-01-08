@@ -15,6 +15,12 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library.
  */
+/**
+ * @file protocol.h
+ * @author Mikkel Kroman
+ * @date 15 Jan 2015
+ * @brief Protocol helper functions and data structures.
+ */
 #include <stdint.h>
 #include <stdlib.h>
 
@@ -22,6 +28,9 @@
 #ifndef MUMBLE_PROTOCOL_H
 #define MUMBLE_PROTOCOL_H
 
+/**
+ * Packet types defined in the mumble protocol specification.
+ */
 typedef enum mumble_packet_type_t
 {
 	MUMBLE_PACKET_VERSION               = 0,
