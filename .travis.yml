@@ -14,4 +14,4 @@ install:
   - "sudo apt-get install -y libev-dev"
   - "tar xzf protobuf-$PROTOBUF_VERSION.tar.gz"
   - "cd protobuf-$PROTOBUF_VERSION && ./configure && make -j2 && sudo make install && sudo ldconfig && cd .."
-  - "cd protobuf-c && ./autogen.sh && ./configure && make && sudo make install"
+  - "cd protobuf-c && ./autogen.sh && ./configure && make && sudo make install && cd .."
