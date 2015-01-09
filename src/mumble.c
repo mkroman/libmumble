@@ -23,8 +23,7 @@
 #include "mumble.h"
 #include "server.h"
 
-int mumble_init(mumble_t* context, const char* cert_file,
-				const char* key_file)
+int mumble_init(mumble_t* context, mumble_settings_t settings)
 {
 #ifdef _WIN32
 	WSADATA wsaData;
@@ -40,9 +39,7 @@ int mumble_init(mumble_t* context, const char* cert_file,
 
 	context->servers = 0;
 	context->num_servers = 0;
-
-	context->key_file = key_file;
-	context->cert_file = cert_file;
+	context->settings = settings;
 
 	if (mumble_init_ssl(context) != 0)
 	{
@@ -73,15 +70,16 @@ int mumble_init_ssl(mumble_t* context)
 	}
 
 	if (!SSL_CTX_use_certificate_chain_file(context->ssl_ctx,
-											context->cert_file))
+											context->settings.cert_file))
 	{
 		fprintf(stderr, "SSL_CTX_use_certificate_chain_file failed (%s)\n",
-				context->cert_file);
+				context->settings.cert_file);
 
 		return 1;
 	}
 
-	if (!SSL_CTX_use_PrivateKey_file(context->ssl_ctx, context->key_file,
+	if (!SSL_CTX_use_PrivateKey_file(context->ssl_ctx,
+									 context->settings.key_file,
 									 SSL_FILETYPE_PEM))
 	{
 		fprintf(stderr, "SSL_CTX_use_PrivateKey_file failed\n");

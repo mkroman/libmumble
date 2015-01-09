@@ -49,6 +49,17 @@ extern "C" {
 #endif /* __cplusplus */
 
 /**
+ * The mumble settings structure.
+ *
+ * This defines what parameters the client should use.
+ */
+typedef struct mumble_settings_t
+{
+	const char* key_file; /**< pointer to a path to the client private key. */
+	const char* cert_file; /**< pointer to a path to the client certificate. */
+} mumble_settings_t;
+
+/**
  * The mumble client structure, also referenced as the `context`.
  */
 typedef struct mumble_t
@@ -56,8 +67,7 @@ typedef struct mumble_t
 	int num_servers;
 	SSL_CTX* ssl_ctx;
 	struct ev_loop* loop;
-	const char* cert_file;
-	const char* key_file;
+	mumble_settings_t settings;
 	char buffer[512];
 	mumble_server_t* servers;
 } mumble_t;
@@ -74,7 +84,7 @@ typedef struct mumble_t
  * @returns zero on success, non-zero otherwise.
  */
 MUMBLE_API int
-mumble_init(mumble_t* context, const char* cert_file, const char* key_file);
+mumble_init(mumble_t* context, mumble_settings_t settings);
 
 /**
  * Initialize the SSL context of a mumble context.

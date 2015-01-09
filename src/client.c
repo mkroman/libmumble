@@ -31,7 +31,12 @@ int main(int argc, char** argv)
 	if (argc > 1)
 		host = argv[1];
 
-	mumble_init(&g_mumble, "public.crt", "private.key");
+	mumble_settings_t settings;
+
+	settings.key_file = "private.key";
+	settings.cert_file = "public.crt";
+
+	mumble_init(&g_mumble, settings);
 	mumble_connect(&g_mumble, host, 64738);
 	mumble_run(&g_mumble);
 	mumble_destroy(&g_mumble);
