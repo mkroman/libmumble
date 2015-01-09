@@ -101,7 +101,7 @@ int mumble_server_connect(mumble_server_t* server, struct mumble_t* context)
 {
 	int result;
 	socket_t fd;
-	struct addrinfo *address, hints;
+	struct addrinfo *results, hints, *ptr;
 	char port_buffer[6];
 
 #ifdef _WIN32
@@ -117,12 +117,12 @@ int mumble_server_connect(mumble_server_t* server, struct mumble_t* context)
 	}
 
 	memset(&hints, 0, sizeof hints);
+	hints.ai_flags = 0;
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_protocol = IPPROTO_TCP;
-	hints.ai_flags = 0;
 	hints.ai_socktype = SOCK_STREAM;
 
-	result = getaddrinfo(server->host, port_buffer, &hints, &address);
+	result = getaddrinfo(server->host, port_buffer, &hints, &results);
 
 	if (result != 0)
 	{
@@ -132,31 +132,23 @@ int mumble_server_connect(mumble_server_t* server, struct mumble_t* context)
 	}
 
 	fd = mumble_server_create_socket();
-	result = 1;
 
-	for (struct addrinfo* ptr = address; ptr != NULL; ptr = ptr->ai_next)
+	for (ptr = results; ptr != NULL; ptr = ptr->ai_next)
 	{
 		if (connect(fd, (struct sockaddr*)ptr->ai_addr, ptr->ai_addrlen) != 0)
 		{
 			if (errno == EINPROGRESS)
-			{
-				// Connection status is not yet determined.
-				result = 0;
-
-				break;
-			}
+				break; // Connection status is not yet determined.
 		}
 		else
 		{
-			result = 0;
-
 			break;
 		}
 	}
 
-	freeaddrinfo(address);
+	freeaddrinfo(results);
 
-	if (result != 0)
+	if (ptr == NULL)
 	{
 		fprintf(stderr, "mumble_server_connect: connection failed\n");
 
