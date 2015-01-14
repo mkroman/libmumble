@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <assert.h>
+#include <openssl/err.h>
 
 #include "mumble.h"
 #include "server.h"
@@ -13,8 +14,20 @@
 int setnonblock(socket_t fd)
 {
 #ifdef __unix__
-	return fcntl(fd, F_SETFL, O_NONBLOCK);
+	int flags = fcntl(fd, F_GETFL);
+
+	flags |= O_NONBLOCK;
+
+	return fcntl(fd, F_SETFL, flags);
 #endif /* __unix__ */
+}
+
+void print_ssl_error(unsigned long e)
+{
+	char buffer[120];
+
+	ERR_error_string_n(e, buffer, sizeof buffer);
+	fputs(buffer, stderr);
 }
 
 socket_t mumble_server_create_socket()
@@ -150,6 +163,7 @@ int mumble_server_connect(mumble_server_t* server, struct mumble_t* context)
 
 	if (ptr == NULL)
 	{
+		close(fd);
 		fprintf(stderr, "mumble_server_connect: connection failed\n");
 
 		return 1;
@@ -328,10 +342,17 @@ void mumble_server_handshake(EV_P_ ev_io *w, int revents)
 	{
 		int err = SSL_get_error(srv->ssl, result);
 
-		if (err != SSL_ERROR_WANT_READ && err != SSL_ERROR_WANT_WRITE)
+		if (err == SSL_ERROR_ZERO_RETURN)
 		{
-			fprintf(stderr, "Unexpected SSL error during handshake: %d\n",
-					err);
+			fprintf(stderr, "mumble_server_handshake: connection closed\n");
+		}
+		else if (err != SSL_ERROR_WANT_READ && err != SSL_ERROR_WANT_WRITE)
+		{
+			/// XXX: Not thread-safe!
+			fprintf(stderr, "error during SSL handshake (err=%d result=%d)\n",
+					err, result);
+
+			print_ssl_error(err);
 		}
 	}
 }

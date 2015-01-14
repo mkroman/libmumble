@@ -58,6 +58,7 @@ int mumble_init_ssl(mumble_t* context)
 {
 	/* Initialize the SSL library. */
 	SSL_library_init();
+	SSL_load_error_strings();
 
 	/* Initialize the SSL context. */
 	context->ssl_ctx = SSL_CTX_new(SSLv23_client_method());

@@ -31,7 +31,7 @@ set (client_SOURCES
 find_package (OpenSSL REQUIRED)
 
 # Link against OpenSSL.
-set (${PROJECT_NAME}_LIBS ${OPENSSL_SSL_LIBRARY})
+set (${PROJECT_NAME}_LIBS ${OPENSSL_LIBRARIES})
 
 # Include OpenSSL.
 include_directories (${OPENSSL_INCLUDE_DIR})
