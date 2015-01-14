@@ -28,6 +28,15 @@
 #ifndef MUMBLE_PROTOCOL_H
 #define MUMBLE_PROTOCOL_H
 
+struct mumble_server_t;
+
+/** 
+ * Function pointer to a packet handler function.
+ */
+typedef int (*mumble_handler_func_t)(struct mumble_server_t* srv,
+									 const uint8_t* body,
+									 uint32_t length);
+
 /**
  * Packet types defined in the mumble protocol specification.
  */
@@ -58,7 +67,8 @@ typedef enum mumble_packet_type_t
 	MUMBLE_PACKET_USER_STATS            = 22,
 	MUMBLE_PACKET_REQUEST_BLOB          = 23,
 	MUMBLE_PACKET_SERVER_CONFIG         = 24,
-	MUMBLE_PACKET_SUGGEST_CONFIG        = 25
+	MUMBLE_PACKET_SUGGEST_CONFIG        = 25,
+	MUMBLE_PACKET_TYPE_MAX              = 26
 } mumble_packet_type_t;
 
 /**
