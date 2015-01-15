@@ -5,6 +5,7 @@
 #include <assert.h>
 #include <openssl/err.h>
 
+#include "log.h"
 #include "mumble.h"
 #include "server.h"
 #include "buffer.h"
@@ -208,7 +209,7 @@ void mumble_server_callback(EV_P_ ev_io *w, int revents)
 		if (sent > 0)
 		{
 #ifdef MUMBLE_VERBOSE_AS_FUCK
-			printf("Sent %zu bytes to the remote peer.\n", sent);
+			MUMBLE_LOG("Sent %zu bytes.", sent);
 #endif
 			mumble_buffer_read(&srv->wbuffer, NULL, sent);
 		}
@@ -223,7 +224,7 @@ void mumble_server_callback(EV_P_ ev_io *w, int revents)
 			}
 			else
 			{
-				ERR("SSL_read failed (sent=%zu err=%d)\n", sent, err);
+				MUMBLE_LOG("SSL_read failed (sent=%zu err=%d)", sent, err);
 			}
 		}
 
@@ -243,7 +244,7 @@ void mumble_server_callback(EV_P_ ev_io *w, int revents)
 		if (result > 0)
 		{
 #ifdef MUMBLE_VERBOSE_AS_FUCK
-			printf("Received %d bytes.\n", result);
+			MUMBLE_LOG("Received %d bytes.", result);
 #endif
 			mumble_buffer_write(&srv->rbuffer, (uint8_t*)ctx->buffer, result);
 
@@ -254,8 +255,6 @@ void mumble_server_callback(EV_P_ ev_io *w, int revents)
 		}
 		else if (result == 0)
 		{
-			fprintf(stderr, "connection closed\n");
-
 			mumble_server_disconnected(srv);
 		}
 		else
@@ -282,8 +281,8 @@ int mumble_server_read_packet(mumble_server_t* server)
 			if (mumble_server_handle_packet(server, type, length))
 			{
 #ifdef MUMBLE_VERBOSE_AS_FUCK
-				LOG("Read a packet (size = %zu bytes, type = %d).\n",
-					packet_length, type);
+				MUMBLE_LOG("Read a packet (size = %zu bytes, type = %d).",
+						   packet_length, type);
 #endif
 
 				/* Discard the data from the buffer. */
@@ -351,7 +350,7 @@ void mumble_server_handshake(EV_P_ ev_io *w, int revents)
 	if (result == 1)
 	{
 		/* SSL handshake complete */
-		LOG("mumble_server_handshake: handshake complete\n");
+		MUMBLE_LOG("handshake complete");
 
 		/* Change the callback to the generic, non-handshake one. */
 		ev_io_stop(EV_A_ w);
@@ -385,8 +384,7 @@ void mumble_server_handshake(EV_P_ ev_io *w, int revents)
 
 void mumble_server_connected(mumble_server_t* server)
 {
-	LOG("mumble_server_connected: connected to %s:%d\n", server->host,
-		server->port);
+	MUMBLE_LOG("Connected to %s:%d", server->host, server->port);
 
 	/* Start the ping watcher. */
 	ev_timer_start(server->ctx->loop, &server->ping_watcher);
@@ -397,18 +395,17 @@ void mumble_server_connected(mumble_server_t* server)
 
 void mumble_server_disconnected(mumble_server_t* server)
 {
-	LOG("%s: connection to %s:%d lost\n", __FUNCTION__, server->host,
-		server->port);
+	MUMBLE_LOG("Connection to %s:%d lost", server->host, server->port);
 
 	/* Stop the ping watcher. */
 #ifdef MUMBLE_VERBOSE_AS_FUCK
-	LOG("Stopping ping watcher.\n");
+	MUMBLE_LOG("Stopping ping watcher.");
 #endif
 	ev_timer_stop(server->ctx->loop, &server->ping_watcher);
 
 	/* Stop the io watcher. */
 #ifdef MUMBLE_VERBOSE_AS_FUCK
-	LOG("Stopping io watcher.\n");
+	MUMBLE_LOG("Stopping io watcher.");
 #endif
 	ev_io_stop(server->ctx->loop, &server->watcher);
 }
