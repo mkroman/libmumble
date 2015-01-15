@@ -12,7 +12,7 @@
 #include "packets.h"
 #include "Mumble.pb-c.h"
 
-int setnonblock(socket_t fd)
+static int setnonblock(socket_t fd)
 {
 #ifdef __unix__
 	int flags = fcntl(fd, F_GETFL);
@@ -23,7 +23,7 @@ int setnonblock(socket_t fd)
 #endif /* __unix__ */
 }
 
-void print_ssl_error(unsigned long e)
+static void print_ssl_error(unsigned long e)
 {
 	char buffer[120];
 
