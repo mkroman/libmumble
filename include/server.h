@@ -79,6 +79,7 @@ typedef struct mumble_server_t
 	socket_t fd;
 	SSL* ssl;
 	ev_io watcher;
+	ev_timer ping_watcher;
 	mumble_buffer_t rbuffer;
 	mumble_buffer_t wbuffer;
 	struct mumble_t* ctx;
@@ -160,6 +161,20 @@ void mumble_server_callback(EV_P_ ev_io *w, int revents);
 void mumble_server_handshake(EV_P_ ev_io *w, int revents);
 
 /**
+ * Called when a connection to a server has been established.
+ *
+ * @param[in] server a pointer to the server.
+ */
+void mumble_server_connected(mumble_server_t* server);
+
+/**
+ * Called when a connection to a server has been lost.
+ *
+ * @param[in] server a pointer to the server.
+ */
+void mumble_server_disconnected(mumble_server_t* server);
+
+/**
  * Send a packet to the server.
  *
  * @param[in] server a pointer to the server.
@@ -191,6 +206,22 @@ int mumble_server_send_version(mumble_server_t* server);
  */
 int mumble_server_send_authenticate(mumble_server_t* server, 
 									const char* username, const char* password);
+
+/**
+ * Send a ping packet to the server.
+ *
+ * @param[in] server a pointer to the server.
+ *
+ * @returns one if successful, zero otherwise.
+ */
+int mumble_server_send_ping(mumble_server_t* server);
+
+/**
+ * Called periodically to send a ping packet to the server.
+ *
+ * @internal
+ */
+void mumble_server_ping(EV_P_ ev_timer* w, int revents);
 
 #ifdef __cplusplus
 }

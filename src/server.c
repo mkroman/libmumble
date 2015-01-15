@@ -65,6 +65,10 @@ int mumble_server_init(mumble_t* context, mumble_server_t* server)
 	mumble_buffer_init(&server->wbuffer);
 	mumble_buffer_init(&server->rbuffer);
 
+	ev_init(&server->ping_watcher, mumble_server_ping);
+	server->ping_watcher.repeat = 15;
+	server->ping_watcher.data = server;
+
 	return 0;
 }
 
@@ -208,6 +212,20 @@ void mumble_server_callback(EV_P_ ev_io *w, int revents)
 #endif
 			mumble_buffer_read(&srv->wbuffer, NULL, sent);
 		}
+		else
+		{
+			int err = SSL_get_error(srv->ssl, sent);
+
+			if (err == SSL_ERROR_ZERO_RETURN)
+			{
+				/* The connection was closed. */
+				mumble_server_disconnected(srv);
+			}
+			else
+			{
+				ERR("SSL_read failed (sent=%zu err=%d)\n", sent, err);
+			}
+		}
 
 		if (srv->wbuffer.size == 0)
 		{
@@ -238,7 +256,7 @@ void mumble_server_callback(EV_P_ ev_io *w, int revents)
 		{
 			fprintf(stderr, "connection closed\n");
 
-			ev_io_stop(EV_A_ w);
+			mumble_server_disconnected(srv);
 		}
 		else
 		{
@@ -308,21 +326,19 @@ size_t mumble_server_write(mumble_server_t* server, char* data, size_t length)
 int mumble_server_handle_packet(mumble_server_t* server, uint16_t type,
 								  uint32_t length)
 {
+	mumble_handler_func_t handler;
 	const uint8_t* body =
 		(const uint8_t*)server->rbuffer.ptr + kMumbleHeaderSize;
-	mumble_handler_func_t handler;
 
 	if (type >= MUMBLE_PACKET_MAX)
 	{
 		fprintf(stderr, "Received invalid packet type %d\n", type);
 
-		return 0;
+		return 1;
 	}
 
 	if ((handler = g_mumble_packet_handlers[type]) != NULL)
-	{
 		return handler(server, body, length);
-	}
 
 	return 1;
 }
@@ -343,8 +359,8 @@ void mumble_server_handshake(EV_P_ ev_io *w, int revents)
 		ev_io_set(w, w->fd, EV_READ);
 		ev_io_start(EV_A_ w);
 
-		mumble_server_send_version(srv);
-		mumble_server_send_authenticate(srv, "libmumble", "");
+		/* Announce that the connection has been established. */
+		mumble_server_connected(srv);
 	}
 	else
 	{
@@ -353,16 +369,48 @@ void mumble_server_handshake(EV_P_ ev_io *w, int revents)
 		if (err == SSL_ERROR_ZERO_RETURN)
 		{
 			fprintf(stderr, "mumble_server_handshake: connection closed\n");
+
+			mumble_server_disconnected(srv);
 		}
 		else if (err != SSL_ERROR_WANT_READ && err != SSL_ERROR_WANT_WRITE)
 		{
-			/// XXX: Not thread-safe!
 			fprintf(stderr, "error during SSL handshake (err=%d result=%d)\n",
 					err, result);
 
 			print_ssl_error(err);
+			mumble_server_disconnected(srv);
 		}
 	}
+}
+
+void mumble_server_connected(mumble_server_t* server)
+{
+	LOG("mumble_server_connected: connected to %s:%d\n", server->host,
+		server->port);
+
+	/* Start the ping watcher. */
+	ev_timer_start(server->ctx->loop, &server->ping_watcher);
+
+	mumble_server_send_version(server);
+	mumble_server_send_authenticate(server, "libmumble", "");
+}
+
+void mumble_server_disconnected(mumble_server_t* server)
+{
+	LOG("%s: connection to %s:%d lost\n", __FUNCTION__, server->host,
+		server->port);
+
+	/* Stop the ping watcher. */
+#ifdef MUMBLE_VERBOSE_AS_FUCK
+	LOG("Stopping ping watcher.\n");
+#endif
+	ev_timer_stop(server->ctx->loop, &server->ping_watcher);
+
+	/* Stop the io watcher. */
+#ifdef MUMBLE_VERBOSE_AS_FUCK
+	LOG("Stopping io watcher.\n");
+#endif
+	ev_io_stop(server->ctx->loop, &server->watcher);
 }
 
 int mumble_server_send(mumble_server_t* server,
@@ -397,9 +445,26 @@ int mumble_server_send(mumble_server_t* server,
 	free(buffer);
 
 	if (result > 0)
-		return 0;
+		return 1;
 
-	return 1;
+	return 0;
+}
+
+void mumble_server_ping(EV_P_ ev_timer* w, int revents)
+{
+	mumble_server_t* srv = (mumble_server_t*)w->data;
+
+	if (mumble_server_send_ping(srv) != 1)
+		fprintf(stderr, "%s: failed to send ping\n", __FUNCTION__);
+
+	ev_timer_again(srv->ctx->loop, w);
+}
+
+int mumble_server_send_ping(mumble_server_t* server)
+{
+	MumbleProto__Ping ping = MUMBLE_PROTO__PING__INIT;
+
+	return mumble_server_send(server, MUMBLE_PACKET_PING, &ping);
 }
 
 int mumble_server_send_version(mumble_server_t* server)
