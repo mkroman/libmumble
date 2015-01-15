@@ -174,7 +174,10 @@ int mumble_server_connect(mumble_server_t* server, struct mumble_t* context)
 	server->watcher.data = server;
 
 	if (mumble_server_init_ssl(server) != 0)
+	{
+		close(fd);
 		return 1;
+	}
 
 	ev_io_init(&server->watcher, mumble_server_handshake, fd,
 			   EV_READ | EV_WRITE);
@@ -200,7 +203,9 @@ void mumble_server_callback(EV_P_ ev_io *w, int revents)
 
 		if (sent > 0)
 		{
+#ifdef MUMBLE_VERBOSE_AS_FUCK
 			printf("Sent %zu bytes to the remote peer.\n", sent);
+#endif
 			mumble_buffer_read(&srv->wbuffer, NULL, sent);
 		}
 
@@ -219,7 +224,9 @@ void mumble_server_callback(EV_P_ ev_io *w, int revents)
 
 		if (result > 0)
 		{
+#ifdef MUMBLE_VERBOSE_AS_FUCK
 			printf("Received %d bytes.\n", result);
+#endif
 			mumble_buffer_write(&srv->rbuffer, (uint8_t*)ctx->buffer, result);
 
 			if (srv->rbuffer.size > kMumbleHeaderSize)
