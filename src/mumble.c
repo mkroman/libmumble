@@ -23,6 +23,8 @@
 #include "mumble.h"
 #include "server.h"
 
+const mumble_version_t kMumbleClientVersion = { 1, 2, 8 };
+
 int mumble_init(mumble_t* context, mumble_settings_t settings)
 {
 #ifdef _WIN32

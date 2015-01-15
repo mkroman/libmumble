@@ -18,7 +18,7 @@
 /**
  * @file protocol.h
  * @author Mikkel Kroman
- * @date 15 Jan 2015
+ * @date 07 Jan 2015
  * @brief Protocol helper functions and data structures.
  */
 #include <stdint.h>
@@ -42,7 +42,7 @@ typedef int (*mumble_handler_func_t)(struct mumble_server_t* srv,
  */
 typedef enum mumble_packet_type_t
 {
-	MUMBLE_PACKET_VERSION               = 0,
+	MUMBLE_PACKET_VERSION               = 1,
 	MUMBLE_PACKET_UDPTUNNEL             = 1,
 	MUMBLE_PACKET_AUTHENTICATE          = 2,
 	MUMBLE_PACKET_PING                  = 3,
@@ -68,7 +68,7 @@ typedef enum mumble_packet_type_t
 	MUMBLE_PACKET_REQUEST_BLOB          = 23,
 	MUMBLE_PACKET_SERVER_CONFIG         = 24,
 	MUMBLE_PACKET_SUGGEST_CONFIG        = 25,
-	MUMBLE_PACKET_TYPE_MAX              = 26
+	MUMBLE_PACKET_MAX                   = 26
 } mumble_packet_type_t;
 
 /**

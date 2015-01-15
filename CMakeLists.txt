@@ -16,13 +16,15 @@ set (libmumble_SOURCE
   src/mumble.c
   src/server.c
   src/buffer.c
-  src/protocol.c)
+  src/protocol.c
+  src/packets.c)
 
 set (libmumble_HEADERS
   include/mumble.h
   include/server.h
   include/buffer.h
-  include/protocol.h)
+  include/protocol.h
+  include/packets.h)
 
 set (client_SOURCES
   src/client.c)

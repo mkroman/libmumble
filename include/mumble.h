@@ -30,9 +30,9 @@
 #include <stdint.h>
 #include <openssl/ssl.h>
 
-#define MUMBLE_API
-
-#include "server.h"
+#ifdef __unix__
+# define MUMBLE_API extern
+#endif
 
 #define LOG(...)                      \
 	do {                              \
@@ -49,6 +49,26 @@ extern "C" {
 #endif /* __cplusplus */
 
 /**
+ * Forward declarations.
+ */
+struct mumble_server_t;
+
+/**
+ * Mumble version struct.
+ */
+typedef struct mumble_version_t
+{
+	int major; /**< The major version number. */
+	int minor; /**< The minor version number. */
+	int patch; /**< The patch version number. */
+} mumble_version_t;
+
+/**
+ * The mumble client version.
+ */
+MUMBLE_API const mumble_version_t kMumbleClientVersion;
+
+/**
  * The mumble settings structure.
  *
  * This defines what parameters the client should use.
@@ -60,31 +80,29 @@ typedef struct mumble_settings_t
 } mumble_settings_t;
 
 /**
- * The mumble client structure, also referenced as the `context`.
+ * The mumble client structure, also referenced to as the `client context`.
+ *
+ * To initialize a new instance of this struct, use mumble_init()
  */
 typedef struct mumble_t
 {
-	int num_servers;
-	SSL_CTX* ssl_ctx;
-	struct ev_loop* loop;
-	mumble_settings_t settings;
-	char buffer[512];
-	mumble_server_t* servers;
+	int num_servers; /**< Number of servers attached to this context. */
+	SSL_CTX* ssl_ctx; /**< Pointer to the SSL context used for new connections. */
+	struct ev_loop* loop; /**< Pointer to the event loop this context operates on. */
+	mumble_settings_t settings; /**< Client settings for this context. */
+	char buffer[512]; /**< Internal buffer associated with this context. */
+	struct mumble_server_t* servers; /**< Linked list that holds all associated servers. */
 } mumble_t;
 
 /**
  * Initialize a new mumble client context.
  *
  * @param context a pointer to allocated memory large enough to hold mumble_t.
- * @param cert_file a pointer to a string containing the file path to a client
- *   certificate.
- * @param key_file a pointer to a string containing the file path to a private
- *   key.
+ * @param settings a settings struct that defines how the client behaves.
  *
  * @returns zero on success, non-zero otherwise.
  */
-MUMBLE_API int
-mumble_init(mumble_t* context, mumble_settings_t settings);
+MUMBLE_API int mumble_init(mumble_t* context, mumble_settings_t settings);
 
 /**
  * Initialize the SSL context of a mumble context.
@@ -119,7 +137,7 @@ int mumble_connect(mumble_t* context, const char* host, uint32_t port);
  * Send the client version message to the server.
  *
  */
-int mumble_send_version(mumble_t* context, mumble_server_t* server);
+int mumble_send_version(mumble_t* context, struct mumble_server_t* server);
 
 /**
  * Run the main event loop.

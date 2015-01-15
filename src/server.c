@@ -9,6 +9,7 @@
 #include "server.h"
 #include "buffer.h"
 #include "protocol.h"
+#include "packets.h"
 #include "Mumble.pb-c.h"
 
 int setnonblock(socket_t fd)
@@ -255,8 +256,10 @@ int mumble_server_read_packet(mumble_server_t* server)
 		{
 			if (mumble_server_handle_packet(server, type, length))
 			{
+#ifdef MUMBLE_VERBOSE_AS_FUCK
 				LOG("Read a packet (size = %zu bytes, type = %d).\n",
 					packet_length, type);
+#endif
 
 				/* Discard the data from the buffer. */
 				mumble_buffer_read(&server->rbuffer, NULL, packet_length);
@@ -300,20 +303,18 @@ int mumble_server_handle_packet(mumble_server_t* server, uint16_t type,
 {
 	const uint8_t* body =
 		(const uint8_t*)server->rbuffer.ptr + kMumbleHeaderSize;
+	mumble_handler_func_t handler;
 
-	switch (type)
+	if (type >= MUMBLE_PACKET_MAX)
 	{
-		case MUMBLE_PACKET_VERSION:
-			{
-				MumbleProto__Version* version =
-						mumble_proto__version__unpack(NULL, length, body);
+		fprintf(stderr, "Received invalid packet type %d\n", type);
 
-				printf("Received version message: %s - %s (%s)\n",
-					   version->release, version->os, version->os_version);
+		return 0;
+	}
 
-				mumble_proto__version__free_unpacked(version, NULL);
-				break;
-			}
+	if ((handler = g_mumble_packet_handlers[type]) != NULL)
+	{
+		return handler(server, body, length);
 	}
 
 	return 1;
@@ -398,7 +399,9 @@ int mumble_server_send_version(mumble_server_t* server)
 {
 	MumbleProto__Version version = MUMBLE_PROTO__VERSION__INIT;
 
-	version.version = 66056;
+	version.version = (kMumbleClientVersion.major << 16 |
+					   kMumbleClientVersion.minor << 8 |
+					   kMumbleClientVersion.patch);
 	version.has_version = 1;
 	version.release = "libmumble";
 	version.os = "X11";
@@ -415,7 +418,7 @@ int mumble_server_send_authenticate(mumble_server_t* server,
 
 	authenticate.username = (char*)username;
 	authenticate.password = (char*)password;
-	authenticate.opus = 1;
+	authenticate.opus = authenticate.has_opus = 1;
 
 	return mumble_server_send(server, MUMBLE_PACKET_AUTHENTICATE,
 							  &authenticate);
