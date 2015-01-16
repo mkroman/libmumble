@@ -23,9 +23,6 @@ static mumble_t g_mumble;
 
 int main(int argc, char** argv)
 {
-	(void)argc;
-	(void)argv;
-
 	static const char* kDefaultHost = "chronicle.nodes.uplink.io";
 	const char* host = kDefaultHost;
 

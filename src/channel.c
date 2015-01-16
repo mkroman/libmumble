@@ -15,11 +15,7 @@ void mumble_channel_destroy(mumble_channel_t* channel)
 	if (!channel)
 		return;
 
-	if (channel->name)
-		free(channel->name);
-
-	if (channel->description)
-		free(channel->description);
-
+	free(channel->name);
+	free(channel->description);
 	free(channel);
 }
