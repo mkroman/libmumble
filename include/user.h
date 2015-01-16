@@ -50,17 +50,22 @@ typedef struct mumble_user_t
 	uint32_t id;
 	uint32_t session;
 	uint32_t actor;
-	const char* name;
+	char* name;
 	uint32_t channel_id;
-	const char* comment;
-	const char* hash;
+	char* comment;
+	char* hash;
 	mumble_user_flags_t flags;
 	struct mumble_user_t* next;
 } mumble_user_t;
 
 /**
- * Initialize a mumbler user struct.
+ * Initialize a mumble user struct.
  */
 mumble_user_t* mumble_user_init(mumble_user_t* user);
+
+/**
+ * Destroy a mumble user struct.
+ */
+void mumble_user_destroy(mumble_user_t* user);
 
 #endif

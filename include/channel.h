@@ -36,8 +36,8 @@ typedef struct mumble_channel_t
 {
 	int id;
 	int parent;
-	const char* name;
-	const char* description;
+	char* name;
+	char* description;
 	int position;
 	mumble_channel_flags_t flags;
 	struct mumble_channel_t* next;
@@ -51,5 +51,10 @@ typedef struct mumble_channel_t
  * @returns a pointer to the channel.
  */
 mumble_channel_t* mumble_channel_init(mumble_channel_t* channel);
+
+/**
+ * Destroy a mumble channel structure.
+ */
+void mumble_channel_destroy(mumble_channel_t* channel);
 
 #endif

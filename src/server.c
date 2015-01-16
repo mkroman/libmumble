@@ -123,13 +123,13 @@ void mumble_server_destroy(mumble_server_t* server)
 	for (channel = server->channels; channel != NULL; channel = channelptr)
 	{
 		channelptr = channel->next;
-		free(channel);
+		mumble_channel_destroy(channel);
 	}
 
 	for (user = server->users; user != NULL; user = userptr)
 	{
 		userptr = user->next;
-		free(user);
+		mumble_user_destroy(user);
 	}
 
 	ev_io_stop(server->ctx->loop, &server->watcher);
@@ -408,7 +408,8 @@ void mumble_server_connected(mumble_server_t* server)
 
 void mumble_server_disconnected(mumble_server_t* server)
 {
-	mumble_channel_t* channel, *next;
+	mumble_channel_t* channel, *channelptr;
+	mumble_user_t* user, *userptr;
 
 	LOG_DEBUG("Connection to %s:%d lost", server->host, server->port);
 
@@ -420,11 +421,20 @@ void mumble_server_disconnected(mumble_server_t* server)
 	LOG_INFO("Stopping io watcher");
 	ev_io_stop(server->ctx->loop, &server->watcher);
 
-	for (channel = server->channels; channel != NULL; channel = next)
+	for (channel = server->channels; channel != NULL; channel = channelptr)
 	{
-		next = channel->next;
-		free(channel);
+		channelptr = channel->next;
+		mumble_channel_destroy(channel);
 	}
+
+	for (user = server->users; user != NULL; user = userptr)
+	{
+		userptr = user->next;
+		mumble_user_destroy(user);
+	}
+
+	server->channels = NULL;
+	server->users = NULL;
 }
 
 int mumble_server_send(mumble_server_t* server,

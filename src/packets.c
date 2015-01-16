@@ -113,10 +113,20 @@ mumble_packet_handle_channel_state(mumble_server_t* srv, const uint8_t* body,
 		channel->parent = channel_state->parent;
 
 	if (channel_state->name != NULL)
+	{
+		if (channel->name)
+			free(channel->name);
+
 		channel->name = strdup(channel_state->name);
+	}
 
 	if (channel_state->description != NULL)
+	{
+		if (channel->description)
+			free(channel->description);
+
 		channel->description = strdup(channel_state->description);
+	}
 
 	if (channel_state->has_position)
 		channel->position = channel_state->position;
@@ -175,7 +185,12 @@ mumble_packet_handle_user_state(mumble_server_t* srv, const uint8_t* body,
 		user->actor = user_state->actor;
 
 	if (user_state->name != NULL)
+	{
+		if (user->name)
+			free(user->name);
+
 		user->name = strdup(user_state->name);
+	}
 
 	if (user_state->has_user_id)
 		user->id = user_state->user_id;
@@ -238,10 +253,20 @@ mumble_packet_handle_user_state(mumble_server_t* srv, const uint8_t* body,
 	}
 
 	if (user_state->comment != NULL)
+	{
+		if (user->comment)
+			free(user->comment);
+
 		user->comment = strdup(user_state->comment);
+	}
 
 	if (user_state->hash != NULL)
+	{
+		if (user->hash)
+			free(user->hash);
+
 		user->hash = strdup(user_state->hash);
+	}
 
 	if (user_state->has_channel_id)
 		user->channel_id = user_state->channel_id;
