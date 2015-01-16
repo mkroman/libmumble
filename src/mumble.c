@@ -20,9 +20,9 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+#include <mumble/mumble.h>
+#include <mumble/server.h>
 #include "log.h"
-#include "mumble.h"
-#include "server.h"
 
 const mumble_version_t kMumbleClientVersion = { 1, 2, 8 };
 

@@ -5,7 +5,7 @@ set (CMAKE_C_FLAGS ${CMAKE_C_FLAGS} "-std=gnu99 -Wall -Wextra")
 set (CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 set (TARGET_NAME "mumble")
 
-include_directories ("${CMAKE_SOURCE_DIR}/include")
+include_directories ("${CMAKE_SOURCE_DIR}/include" "${CMAKE_SOURCE_DIR}/src")
 
 # Run cmake with -DLOG_LEVEL=<n> to set the log level.
 if (LOG_LEVEL)
@@ -23,14 +23,14 @@ set (libmumble_SOURCE
   src/log.c)
 
 set (libmumble_HEADERS
-  include/mumble.h
-  include/server.h
-  include/buffer.h
-  include/protocol.h
-  include/packets.h
-  include/channel.h
-  include/user.h
-  include/log.h)
+  include/mumble/mumble.h
+  include/mumble/server.h
+  include/mumble/buffer.h
+  include/mumble/protocol.h
+  include/mumble/packets.h
+  include/mumble/channel.h
+  include/mumble/user.h
+  include/mumble/log.h)
 
 set (client_SOURCES
   src/client.c)
@@ -84,7 +84,7 @@ include_directories (${PROTOBUF_C_ROOT}/include)
 # }}}
 
 add_library (${TARGET_NAME} STATIC
-  ${libmumble_SOURCE} ${libmumble_HEADERS}
+  ${libmumble_SOURCE}
   ${PROTO_FILES})
 
 add_executable (client ${client_SOURCES})

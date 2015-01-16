@@ -5,15 +5,15 @@
 #include <assert.h>
 #include <openssl/err.h>
 
-#include "log.h"
-#include "mumble.h"
-#include "server.h"
-#include "buffer.h"
+#include <mumble/mumble.h>
+#include <mumble/server.h>
+#include <mumble/channel.h>
+#include <mumble/user.h>
+
+#include "Mumble.pb-c.h"
 #include "protocol.h"
 #include "packets.h"
-#include "channel.h"
-#include "user.h"
-#include "Mumble.pb-c.h"
+#include "log.h"
 
 static int setnonblock(socket_t fd)
 {

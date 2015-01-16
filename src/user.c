@@ -1,5 +1,5 @@
 #include <stdlib.h>
-#include "user.h"
+#include <mumble/user.h>
 
 mumble_user_t* mumble_user_init(mumble_user_t* user)
 {

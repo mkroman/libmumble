@@ -16,7 +16,7 @@
 * License along with this library.
 */
 
-#include "mumble.h"
+#include <mumble/mumble.h>
 #include "log.h"
 
 static mumble_t g_mumble;

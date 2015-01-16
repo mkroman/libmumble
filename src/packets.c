@@ -1,11 +1,11 @@
 #include <stdio.h>
 
-#include "log.h"
-#include "server.h"
-#include "packets.h"
+#include <mumble/server.h>
+#include <mumble/channel.h>
+#include <mumble/user.h>
 #include "protocol.h"
-#include "channel.h"
-#include "user.h"
+#include "packets.h"
+#include "log.h"
 #include "Mumble.pb-c.h"
 
 int
