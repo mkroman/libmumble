@@ -20,6 +20,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+#include "log.h"
 #include "mumble.h"
 #include "server.h"
 
@@ -33,7 +34,7 @@ int mumble_init(mumble_t* context, mumble_settings_t settings)
 
 	if (result != 0)
 	{
-		fprintf(stderr, "mumble_init: Failed to initialize winsock\n");
+		LOG_FATAL("Failed to initialize winsock");
 
 		return 1;
 	}
@@ -44,11 +45,7 @@ int mumble_init(mumble_t* context, mumble_settings_t settings)
 	context->settings = settings;
 
 	if (mumble_init_ssl(context) != 0)
-	{
-		fprintf(stderr, "mumble_init_ssl failed\n");
-
 		return 1;
-	}
 
 	// Initialize a new event loop.
 	context->loop = ev_loop_new(0);
@@ -67,7 +64,7 @@ int mumble_init_ssl(mumble_t* context)
 
 	if (!context->ssl_ctx)
 	{
-		fprintf(stderr, "SSL_CTX_new failed\n");
+		LOG_ERROR("SSL_CTX_new failed");
 
 		return 1;
 	}
@@ -75,8 +72,8 @@ int mumble_init_ssl(mumble_t* context)
 	if (!SSL_CTX_use_certificate_chain_file(context->ssl_ctx,
 											context->settings.cert_file))
 	{
-		fprintf(stderr, "SSL_CTX_use_certificate_chain_file failed (%s)\n",
-				context->settings.cert_file);
+		LOG_ERROR("SSL_CTX_use_certificate_chain_file failed (%s)\n",
+				  context->settings.cert_file);
 
 		return 1;
 	}
@@ -85,14 +82,14 @@ int mumble_init_ssl(mumble_t* context)
 									 context->settings.key_file,
 									 SSL_FILETYPE_PEM))
 	{
-		fprintf(stderr, "SSL_CTX_use_PrivateKey_file failed\n");
+		LOG_ERROR("SSL_CTX_use_PrivateKey_file failed\n");
 
 		return 1;
 	}
 
 	if (!SSL_CTX_check_private_key(context->ssl_ctx))
 	{
-		fprintf(stderr, "invalid cert/key pair\n");
+		LOG_ERROR("Invalid cert/key pair\n");
 
 		return 1;
 	}
@@ -124,11 +121,7 @@ int mumble_connect(mumble_t* context, const char* host, uint32_t port)
 	mumble_server_t* srv = (mumble_server_t*)malloc(sizeof(mumble_server_t));
 
 	if (mumble_server_init(context, srv) != 0)
-	{
-		fprintf(stderr, "mumble_server_init failed\n");
-
 		return 1;
-	}
 
 	srv->host = host;
 	srv->port = port;

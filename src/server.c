@@ -40,15 +40,14 @@ socket_t mumble_server_create_socket()
 
 	if (fd < 0)
 	{
-		fprintf(stderr, "mumble_server_create_socket: socket() failed\n");
+		LOG_ERROR("Socket creation failed");
 
 		return -1;
 	}
 	
 	if (setnonblock(fd) != 0)
 	{
-		fprintf(stderr, "mumble_server_create_socket: could not "
-				"make socket non-blocking\n");
+		LOG_ERROR("Could not make file descriptor non-blocking");
 
 		return -1;
 	}
@@ -82,22 +81,22 @@ int mumble_server_init_ssl(mumble_server_t* server)
 
 	if (server->ssl == NULL)
 	{
-		fprintf(stderr, "mumble_server_connect: could not create SSL object\n");
+		LOG_ERROR("Could not create SSL object");
 
 		return 1;
 	}
 
 	if (!SSL_set_fd(server->ssl, server->fd))
 	{
-		fprintf(stderr, "could not set file descriptor\n");
+		LOG_ERROR("Could not set file descriptor on SSL object");
 
 		return 1;
 	}
 
 	if ((result = SSL_connect(server->ssl)) != -1)
 	{
-		fprintf(stderr, "SSL_connect: %d (%d)\n", result,
-				SSL_get_error(server->ssl, result));
+		LOG_ERROR("SSL Connection failed (err=%d ret=%d)", result, 
+				  SSL_get_error(server->ssl, result));
 
 		return 1;
 	}
@@ -129,8 +128,7 @@ int mumble_server_connect(mumble_server_t* server, struct mumble_t* context)
 	if (snprintf(port_buffer, sizeof port_buffer, "%u", server->port) < 0)
 #endif
 	{
-		fprintf(stderr, "mumble_server_connect: could not convert "
-				"port to number\n");
+		LOG_ERROR("Could not convert port to number");
 
 		return 1;
 	}
@@ -145,7 +143,7 @@ int mumble_server_connect(mumble_server_t* server, struct mumble_t* context)
 
 	if (result != 0)
 	{
-		fprintf(stderr, "mumble_server_connect: %s\n", gai_strerror(result));
+		LOG_ERROR("Could not resolve remote host: %s", gai_strerror(result));
 
 		return 1;
 	}
@@ -170,7 +168,7 @@ int mumble_server_connect(mumble_server_t* server, struct mumble_t* context)
 	if (ptr == NULL)
 	{
 		close(fd);
-		fprintf(stderr, "mumble_server_connect: connection failed\n");
+		LOG_ERROR("Connection failed");
 
 		return 1;
 	}
@@ -208,9 +206,7 @@ void mumble_server_callback(EV_P_ ev_io *w, int revents)
 
 		if (sent > 0)
 		{
-#ifdef MUMBLE_VERBOSE_AS_FUCK
-			MUMBLE_LOG("Sent %zu bytes.", sent);
-#endif
+			LOG_INFO("Sent %zu bytes", sent);
 			mumble_buffer_read(&srv->wbuffer, NULL, sent);
 		}
 		else
@@ -224,7 +220,8 @@ void mumble_server_callback(EV_P_ ev_io *w, int revents)
 			}
 			else
 			{
-				MUMBLE_LOG("SSL_read failed (sent=%zu err=%d)", sent, err);
+				LOG_INFO("Could not read from SSL object (err=%d ret=%zu)", err,
+						 sent);
 			}
 		}
 
@@ -243,9 +240,7 @@ void mumble_server_callback(EV_P_ ev_io *w, int revents)
 
 		if (result > 0)
 		{
-#ifdef MUMBLE_VERBOSE_AS_FUCK
-			MUMBLE_LOG("Received %d bytes.", result);
-#endif
+			LOG_INFO("Received %d bytes", result);
 			mumble_buffer_write(&srv->rbuffer, (uint8_t*)ctx->buffer, result);
 
 			if (srv->rbuffer.size > kMumbleHeaderSize)
@@ -259,7 +254,7 @@ void mumble_server_callback(EV_P_ ev_io *w, int revents)
 		}
 		else
 		{
-			fprintf(stderr, "SSL_read failed: %d\n", result);
+			LOG_ERROR("Could not read from SSL object: %d", result);
 		}
 	}
 }
@@ -280,10 +275,8 @@ int mumble_server_read_packet(mumble_server_t* server)
 		{
 			if (mumble_server_handle_packet(server, type, length))
 			{
-#ifdef MUMBLE_VERBOSE_AS_FUCK
-				MUMBLE_LOG("Read a packet (size = %zu bytes, type = %d).",
-						   packet_length, type);
-#endif
+				LOG_INFO("Handled packet (size = %zu type = %d)",
+						 packet_length, type);
 
 				/* Discard the data from the buffer. */
 				mumble_buffer_read(&server->rbuffer, NULL, packet_length);
@@ -331,7 +324,7 @@ int mumble_server_handle_packet(mumble_server_t* server, uint16_t type,
 
 	if (type >= MUMBLE_PACKET_MAX)
 	{
-		fprintf(stderr, "Received invalid packet type %d\n", type);
+		LOG_WARN("Received invalid packet type %d", type);
 
 		return 1;
 	}
@@ -350,7 +343,7 @@ void mumble_server_handshake(EV_P_ ev_io *w, int revents)
 	if (result == 1)
 	{
 		/* SSL handshake complete */
-		MUMBLE_LOG("handshake complete");
+		LOG_DEBUG("SSL handshake complete");
 
 		/* Change the callback to the generic, non-handshake one. */
 		ev_io_stop(EV_A_ w);
@@ -367,14 +360,14 @@ void mumble_server_handshake(EV_P_ ev_io *w, int revents)
 
 		if (err == SSL_ERROR_ZERO_RETURN)
 		{
-			fprintf(stderr, "mumble_server_handshake: connection closed\n");
+			LOG_WARN("Connection was closed during handshake");
 
 			mumble_server_disconnected(srv);
 		}
 		else if (err != SSL_ERROR_WANT_READ && err != SSL_ERROR_WANT_WRITE)
 		{
-			fprintf(stderr, "error during SSL handshake (err=%d result=%d)\n",
-					err, result);
+			LOG_ERROR("Error during SSL handshake (err=%d ret=%d)",
+					  err, result);
 
 			print_ssl_error(err);
 			mumble_server_disconnected(srv);
@@ -384,7 +377,7 @@ void mumble_server_handshake(EV_P_ ev_io *w, int revents)
 
 void mumble_server_connected(mumble_server_t* server)
 {
-	MUMBLE_LOG("Connected to %s:%d", server->host, server->port);
+	LOG_DEBUG("Connected to %s:%d", server->host, server->port);
 
 	/* Start the ping watcher. */
 	ev_timer_start(server->ctx->loop, &server->ping_watcher);
@@ -395,18 +388,14 @@ void mumble_server_connected(mumble_server_t* server)
 
 void mumble_server_disconnected(mumble_server_t* server)
 {
-	MUMBLE_LOG("Connection to %s:%d lost", server->host, server->port);
+	LOG_DEBUG("Connection to %s:%d lost", server->host, server->port);
 
 	/* Stop the ping watcher. */
-#ifdef MUMBLE_VERBOSE_AS_FUCK
-	MUMBLE_LOG("Stopping ping watcher.");
-#endif
+	LOG_INFO("Stopping ping watcher");
 	ev_timer_stop(server->ctx->loop, &server->ping_watcher);
 
 	/* Stop the io watcher. */
-#ifdef MUMBLE_VERBOSE_AS_FUCK
-	MUMBLE_LOG("Stopping io watcher.");
-#endif
+	LOG_INFO("Stopping io watcher");
 	ev_io_stop(server->ctx->loop, &server->watcher);
 }
 
@@ -452,7 +441,9 @@ void mumble_server_ping(EV_P_ ev_timer* w, int revents)
 	mumble_server_t* srv = (mumble_server_t*)w->data;
 
 	if (mumble_server_send_ping(srv) != 1)
-		fprintf(stderr, "%s: failed to send ping\n", __FUNCTION__);
+		LOG_ERROR("Could not send ping packet");
+	else
+		LOG_INFO("Sending ping packet");
 
 	ev_timer_again(srv->ctx->loop, w);
 }

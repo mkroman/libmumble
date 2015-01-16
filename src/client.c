@@ -37,7 +37,7 @@ int main(int argc, char** argv)
 	settings.key_file = "private.key";
 	settings.cert_file = "public.crt";
 
-	MUMBLE_LOG("Initializing client.");
+	LOG_INFO("libmumble v0.1");
 
 	mumble_init(&g_mumble, settings);
 	mumble_connect(&g_mumble, host, 64738);

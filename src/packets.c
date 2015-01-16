@@ -7,6 +7,20 @@
 #include "Mumble.pb-c.h"
 
 int
+mumble_packet_handle_ping(mumble_server_t* srv, const uint8_t* body,
+								 uint32_t length)
+{
+	MumbleProto__Ping* ping =
+		mumble_proto__ping__unpack(NULL, length, body);
+
+	MUMBLE_LOG("Received ping packet");
+
+	mumble_proto__ping__free_unpacked(ping, NULL);
+
+	return 1;
+}
+
+int
 mumble_packet_handle_crypt_setup(mumble_server_t* srv, const uint8_t* body,
 								 uint32_t length)
 {

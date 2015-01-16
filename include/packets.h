@@ -45,7 +45,7 @@ static mumble_handler_func_t g_mumble_packet_handlers[MUMBLE_PACKET_MAX] = {
 	mumble_packet_handle_version, /* MUMBLE_PACKET_VERSION */
 	NULL, /* MUMBLE_PACKET_UDPTUNNEL */
 	NULL, /* MUMBLE_PACKET_AUTHENTICATE */
-	NULL, /* MUMBLE_PACKET_PING */
+	mumble_packet_handle_ping, /* MUMBLE_PACKET_PING */
 	NULL, /* MUMBLE_PACKET_REJECT */
 	mumble_packet_handle_server_sync, /* MUMBLE_PACKET_SERVER_SYNC */
 	NULL, /* MUMBLE_PACKET_CHANNEL_REMOVE */
