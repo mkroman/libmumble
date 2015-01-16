@@ -17,6 +17,7 @@
 */
 
 #include "mumble.h"
+#include "log.h"
 
 static mumble_t g_mumble;
 
@@ -35,6 +36,8 @@ int main(int argc, char** argv)
 
 	settings.key_file = "private.key";
 	settings.cert_file = "public.crt";
+
+	LOG_INFO("libmumble v0.1");
 
 	mumble_init(&g_mumble, settings);
 	mumble_connect(&g_mumble, host, 64738);
