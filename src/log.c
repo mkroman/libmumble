@@ -30,6 +30,9 @@ void log_write(log_level_t level, const char* func, const char* file,
 	static char file_buffer[21];
 	va_list ap;
 
+	if (level > kLogLevel)
+		return;
+
 	va_start(ap, format);
 	pthread_mutex_lock(&log_mutex);
 

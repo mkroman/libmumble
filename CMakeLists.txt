@@ -6,6 +6,11 @@ set (CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 
 include_directories (include/)
 
+# Run cmake with -DLOG_LEVEL=<n> to set the log level.
+if (LOG_LEVEL)
+  add_definitions (-DLOG_LEVEL=${LOG_LEVEL})
+endif ()
+
 if (WIN32)
   add_definitions (-DWIN32 -D__WINDOWS__ -DUNICODE)
 else ()
@@ -35,6 +40,8 @@ set (libmumble_HEADERS
 set (client_SOURCES
   src/client.c)
 
+# {{{ OpenSSL
+
 # Find OpenSSL.
 find_package (OpenSSL REQUIRED)
 
@@ -44,6 +51,9 @@ set (${PROJECT_NAME}_LIBS ${OPENSSL_LIBRARIES})
 # Include OpenSSL.
 include_directories (${OPENSSL_INCLUDE_DIR})
 
+# }}}
+# {{{ LibEV
+
 # Find libev.
 find_package (LibEV REQUIRED)
 
@@ -52,6 +62,8 @@ set (${PROJECT_NAME}_LIBS ${${PROJECT_NAME}_LIBS} "${LIBEV_LIBRARIES}")
 
 # Include libev header directories.
 include_directories (${LIBEV_INCLUDE_DIRS})
+
+# }}}
 
 # Find the protoc-c executable.
 find_program (PROTOBUF_C_PROTOC_EXECUTABLE
