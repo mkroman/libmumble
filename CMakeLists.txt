@@ -1,20 +1,15 @@
 project (libmumble)
 cmake_minimum_required (VERSION 2.8)
 
-set (CMAKE_C_FLAGS ${CMAKE_C_FLAGS} "-std=gnu99 -Wall")
+set (CMAKE_C_FLAGS ${CMAKE_C_FLAGS} "-std=gnu99 -Wall -Wextra")
 set (CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
+set (TARGET_NAME "mumble")
 
-include_directories (include/)
+include_directories ("${CMAKE_SOURCE_DIR}/include")
 
 # Run cmake with -DLOG_LEVEL=<n> to set the log level.
 if (LOG_LEVEL)
   add_definitions (-DLOG_LEVEL=${LOG_LEVEL})
-endif ()
-
-if (WIN32)
-  add_definitions (-DWIN32 -D__WINDOWS__ -DUNICODE)
-else ()
-  add_definitions (-DUNIX)
 endif ()
 
 set (libmumble_SOURCE
@@ -83,7 +78,7 @@ add_custom_command (
     --proto_path ${CMAKE_CURRENT_SOURCE_DIR}/proto --c_out ${PROTO_DIR}
       ${CMAKE_CURRENT_SOURCE_DIR}/proto/Mumble.proto
   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/proto/Mumble.proto ${PROTOBUF_C_PROTOC_EXECUTABLE}
-  COMMENT "Generating protobufs"
+  COMMENT "Generating Protocol Buffers"
   VERBATIM)
 
 set_source_files_properties (
@@ -101,12 +96,12 @@ find_library (PROTOC_C_LIBRARY
 
 include_directories (${PROTOBUF_C_ROOT}/include)
 
-add_library (${PROJECT_NAME} STATIC
+add_library (${TARGET_NAME} STATIC
   ${libmumble_SOURCE} ${libmumble_HEADERS}
   ${PROTO_DIR}/Mumble.pb-c.c
   ${PROTO_DIR}/Mumble.pb-c.h)
 
 add_executable (client ${client_SOURCES})
 
-target_link_libraries (${PROJECT_NAME} ${PROTOC_C_LIBRARY} ${${PROJECT_NAME}_LIBS})
-target_link_libraries (client ${PROJECT_NAME})
+target_link_libraries (${TARGET_NAME} ${PROTOC_C_LIBRARY} ${${PROJECT_NAME}_LIBS})
+target_link_libraries (client ${TARGET_NAME})
