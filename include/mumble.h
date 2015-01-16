@@ -86,12 +86,22 @@ typedef struct mumble_settings_t
  */
 typedef struct mumble_t
 {
-	int num_servers; /**< Number of servers attached to this context. */
-	SSL_CTX* ssl_ctx; /**< Pointer to the SSL context used for new connections. */
-	struct ev_loop* loop; /**< Pointer to the event loop this context operates on. */
-	mumble_settings_t settings; /**< Client settings for this context. */
-	char buffer[512]; /**< Internal buffer associated with this context. */
-	struct mumble_server_t* servers; /**< Linked list that holds all associated servers. */
+	/** 
+	 * Number of servers attached to this context.
+	 *
+	 * This is useful for getting the number of servers in constant time.
+	 */
+	int num_servers;
+	/** Pointer to an SSL context that will be inherited by new servers. */
+	SSL_CTX* ssl_ctx;
+	/** Pointer to the event loop this context operates on. */
+	struct ev_loop* loop;
+	/** Client settings for this context. */
+	mumble_settings_t settings;
+	/** Internal buffer that is used by the library. */
+	char buffer[512];
+	/** Linked list of servers attached to this client. */
+	struct mumble_server_t* servers;
 } mumble_t;
 
 /**

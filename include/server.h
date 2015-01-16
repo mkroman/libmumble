@@ -70,19 +70,30 @@ static const char* kMumbleClientName = "libmumble (github.com/mkroman/libmumble)
 
 struct mumble_t;
 
+/**
+ * The mumble server structure.
+ */
 typedef struct mumble_server_t
 {
-	const char* host;
+	/** The server host. */
+	const char* host; 
+	/** The server port. */
 	uint32_t port;
-	struct sockaddr_storage socket_address;
-	socklen_t socket_addrlen;
+	/** The socket file descriptor. */
 	socket_t fd;
+	/** The associated SSL object. */
 	SSL* ssl;
+	/** The I/O watcher for the socket file descriptor. */
 	ev_io watcher;
+	/** The periodic heartbeat timer. */
 	ev_timer ping_watcher;
+	/** The read buffer. */
 	mumble_buffer_t rbuffer;
+	/** The write buffer. */
 	mumble_buffer_t wbuffer;
+	/** A pointer to the client context. */
 	struct mumble_t* ctx;
+	/** A pointer to the next server in the linked list. */
 	struct mumble_server_t* next;
 } mumble_server_t;
 

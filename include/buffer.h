@@ -30,15 +30,28 @@
 #ifndef MUMBLE_BUFFER_H
 #define MUMBLE_BUFFER_H
 
+/**
+ * The default buffer size for new buffers.
+ */
 static const size_t kMumbleBufferSize = 1024 * 8;
+
+/**
+ * The maximum size a buffer is allowed to resize to.
+ */
 static const size_t kMumbleBufferSizeCap = 1024 * 1024 * 8;
 
+/** 
+ * The mumble buffer structure.
+ *
+ * This is used for keeping track of the buffers size, where the memory is
+ * allocated, and so on.
+ */
 typedef struct mumble_buffer_t
 {
-	uint8_t* ptr;
-	size_t capacity;
-	size_t size;
-	size_t pos;
+	uint8_t* ptr; /**< Pointer to allocated memory. */
+	size_t capacity; /**< The capacity (size) of the allocated memory. */
+	size_t size; /**< The number of bytes that is actively used of the allocated memory. */
+	size_t pos; /**< The current position where we will write to. */
 } mumble_buffer_t;
 
 /**
