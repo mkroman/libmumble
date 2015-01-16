@@ -5,6 +5,7 @@
 #include "packets.h"
 #include "protocol.h"
 #include "channel.h"
+#include "user.h"
 #include "Mumble.pb-c.h"
 
 int
@@ -52,7 +53,25 @@ int
 mumble_packet_handle_server_sync(mumble_server_t* srv, const uint8_t* body,
 								 uint32_t length)
 {
-	MUMBLE_LOG("Received server sync packet");
+	MumbleProto__ServerSync* server_sync =
+		mumble_proto__server_sync__unpack(NULL, length, body);
+
+	if (server_sync->has_session)
+		srv->session = server_sync->session;
+
+	if (server_sync->has_max_bandwidth)
+		srv->max_bandwidth = server_sync->max_bandwidth;
+
+	if (server_sync->welcome_text != NULL)
+		srv->welcome_text = strdup(server_sync->welcome_text);
+
+	if (server_sync->has_permissions)
+		srv->permissions = server_sync->permissions;
+
+	LOG_DEBUG("Server synchronization complete (session=%d)", srv->session);
+	LOG_DEBUG("Welcome text: %s", srv->welcome_text);
+
+	mumble_proto__server_sync__free_unpacked(server_sync, NULL);
 
 	return 1;
 }
@@ -117,10 +136,127 @@ mumble_packet_handle_channel_state(mumble_server_t* srv, const uint8_t* body,
 
 	return 1;
 }
+int
+mumble_packet_handle_user_state(mumble_server_t* srv, const uint8_t* body,
+								uint32_t length)
+{
+	int new_user = 0;
+	mumble_user_t* user;
+	MumbleProto__UserState* user_state =
+		mumble_proto__user_state__unpack(NULL, length, body);
+
+	if (!user_state->has_session)
+	{
+		LOG_WARN("Received user state doesn't have a session id");
+
+		return 1;
+	}
+
+	for (user = srv->users; user != NULL; user = user->next)
+	{
+		if (user->session == user_state->session)
+			break;
+	}
+
+	if (user == NULL)
+	{
+		/* Create a new user. */
+		user = (mumble_user_t*)malloc(sizeof(mumble_user_t));
+		mumble_user_init(user);
+		user->next = srv->users;
+		srv->users = user;
+		new_user = 1;
+	}
+
+	if (user_state->has_session)
+		user->session = user_state->session;
+
+	if (user_state->has_actor)
+		user->actor = user_state->actor;
+
+	if (user_state->name != NULL)
+		user->name = strdup(user_state->name);
+
+	if (user_state->has_user_id)
+		user->id = user_state->user_id;
+
+	if (user_state->has_channel_id)
+	{
+		if (!new_user && user->channel_id != user_state->channel_id)
+			LOG_DEBUG("User changed channel (channel %d -> channel %d)",
+					  user->channel_id, user_state->channel_id);
+
+		user->channel_id = user_state->channel_id;
+	}
+
+	if (user_state->has_mute)
+	{
+		if (user_state->mute)
+			user->flags |= MUMBLE_USER_MUTE;
+		else
+			user->flags &= ~MUMBLE_USER_MUTE;
+	}
+
+	if (user_state->has_deaf)
+	{
+		if (user_state->deaf)
+			user->flags |= MUMBLE_USER_DEAF;
+		else
+			user->flags &= MUMBLE_USER_DEAF;
+	}
+
+	if (user_state->has_suppress)
+	{
+		if (user_state->suppress)
+			user->flags |= MUMBLE_USER_SUPPRESS;
+		else
+			user->flags &= ~MUMBLE_USER_SUPPRESS;
+	}
+
+	if (user_state->has_self_mute)
+	{
+		if (user_state->self_mute)
+			user->flags |= MUMBLE_USER_SELF_MUTE;
+		else
+			user->flags &= MUMBLE_USER_SELF_MUTE;
+	}
+
+	if (user_state->has_self_deaf)
+	{
+		if (user_state->self_deaf)
+			user->flags |= MUMBLE_USER_SELF_DEAF;
+		else
+			user->flags &= ~MUMBLE_USER_SELF_DEAF;
+	}
+
+	if (user_state->has_recording)	
+	{
+		if (user_state->recording)
+			user->flags |= MUMBLE_USER_RECORDING;
+		else
+			user->flags &= MUMBLE_USER_RECORDING;
+	}
+
+	if (user_state->comment != NULL)
+		user->comment = strdup(user_state->comment);
+
+	if (user_state->hash != NULL)
+		user->hash = strdup(user_state->hash);
+
+	if (user_state->has_channel_id)
+		user->channel_id = user_state->channel_id;
+
+	LOG_DEBUG("Received user state (session=%d name='%s' channel=%d)",
+			  user->session, user->name, user->channel_id);
+
+	mumble_proto__user_state__free_unpacked(user_state, NULL);
+
+	return 1;
+}
 
 int
 mumble_packet_handle_version(mumble_server_t* srv, const uint8_t* body,
-								 uint32_t length)
+							 uint32_t length)
 {
 	MumbleProto__Version* version =
 			mumble_proto__version__unpack(NULL, length, body);

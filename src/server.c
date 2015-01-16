@@ -12,6 +12,7 @@
 #include "protocol.h"
 #include "packets.h"
 #include "channel.h"
+#include "user.h"
 #include "Mumble.pb-c.h"
 
 static int setnonblock(socket_t fd)
@@ -63,7 +64,9 @@ int mumble_server_init(mumble_t* context, mumble_server_t* server)
 
 	server->host = NULL;
 	server->ctx = context;
+	server->users = NULL;
 	server->channels = NULL;
+	server->welcome_text = NULL;
 	mumble_buffer_init(&server->wbuffer);
 	mumble_buffer_init(&server->rbuffer);
 
@@ -108,7 +111,8 @@ int mumble_server_init_ssl(mumble_server_t* server)
 
 void mumble_server_destroy(mumble_server_t* server)
 {
-	mumble_channel_t* channel, *next;
+	mumble_channel_t* channel, *channelptr;
+	mumble_user_t* user, *userptr;
 
 	close(server->fd);
 	SSL_free(server->ssl);
@@ -116,10 +120,16 @@ void mumble_server_destroy(mumble_server_t* server)
 	free(server->wbuffer.ptr);
 	free(server->rbuffer.ptr);
 
-	for (channel = server->channels; channel != NULL; channel = next)
+	for (channel = server->channels; channel != NULL; channel = channelptr)
 	{
-		next = channel->next;
+		channelptr = channel->next;
 		free(channel);
+	}
+
+	for (user = server->users; user != NULL; user = userptr)
+	{
+		userptr = user->next;
+		free(user);
 	}
 
 	ev_io_stop(server->ctx->loop, &server->watcher);

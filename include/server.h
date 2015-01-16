@@ -72,6 +72,7 @@ static const char* kMumbleClientName = "libmumble (github.com/mkroman/libmumble)
  * Forward declarations.
  */
 struct mumble_t;
+struct mumble_user_t;
 struct mumble_channel_t;
 
 /**
@@ -97,8 +98,18 @@ typedef struct mumble_server_t
 	mumble_buffer_t wbuffer;
 	/** A pointer to the client context. */
 	struct mumble_t* ctx;
+	/** The connection session id. */
+	int session;
+	/** The maximum bandwidth we're allowed to use. */
+	int max_bandwidth;
+	/** The servers welcome text. */
+	const char* welcome_text;
+	/** The servers permission flags. */
+	uint64_t permissions;
 	/** A pointer to a linked list with channels. */
 	struct mumble_channel_t* channels;
+	/** A pointer to a linked list with users. */
+	struct mumble_user_t* users;
 	/** A pointer to the next server in the linked list. */
 	struct mumble_server_t* next;
 } mumble_server_t;
