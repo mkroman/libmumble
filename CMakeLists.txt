@@ -59,33 +59,19 @@ set (${PROJECT_NAME}_LIBS ${${PROJECT_NAME}_LIBS} "${LIBEV_LIBRARIES}")
 include_directories (${LIBEV_INCLUDE_DIRS})
 
 # }}}
-
-# Find the protoc-c executable.
-find_program (PROTOBUF_C_PROTOC_EXECUTABLE
-  NAMES protoc-c
-  DOC "The Google Protocol Buffers C Compiler")
-
+# {{{ Google Protocol Buffers
 # Generate protobufs.
-set (PROTO_DIR "${CMAKE_CURRENT_BINARY_DIR}/proto")
-file (MAKE_DIRECTORY ${PROTO_DIR})
-add_custom_command (
-  OUTPUT
-    "${PROTO_DIR}/Mumble.pb-c.c"
-    "${PROTO_DIR}/Mumble.pb-c.h"
-  COMMAND
-    ${PROTOBUF_C_PROTOC_EXECUTABLE}
-  ARGS
-    --proto_path ${CMAKE_CURRENT_SOURCE_DIR}/proto --c_out ${PROTO_DIR}
-      ${CMAKE_CURRENT_SOURCE_DIR}/proto/Mumble.proto
-  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/proto/Mumble.proto ${PROTOBUF_C_PROTOC_EXECUTABLE}
-  COMMENT "Generating Protocol Buffers"
-  VERBATIM)
+include (GoogleProtoCC)
 
-set_source_files_properties (
-  ${PROTO_DIR}/Mumble.pb-c.c
-  ${PROTO_DIR}/Mumble.pb-c.h
-  PROPERTIES
-    GENERATED TRUE)
+set (PROTO_DIR "${CMAKE_BINARY_DIR}/proto")
+file (MAKE_DIRECTORY ${PROTO_DIR})
+
+protobuf_c_compile (
+  PROTO_FILES
+  DESTINATION ${PROTO_DIR}
+  PROTO_PATH "${CMAKE_SOURCE_DIR}/proto"
+  TARGETS
+    Mumble.proto)
 
 include_directories (${PROTO_DIR})
 
@@ -95,11 +81,11 @@ find_library (PROTOC_C_LIBRARY
   PATHS ${PROTOBUF_C_ROOT} ${PROTOBUF_C_ROOT}/lib)
 
 include_directories (${PROTOBUF_C_ROOT}/include)
+# }}}
 
 add_library (${TARGET_NAME} STATIC
   ${libmumble_SOURCE} ${libmumble_HEADERS}
-  ${PROTO_DIR}/Mumble.pb-c.c
-  ${PROTO_DIR}/Mumble.pb-c.h)
+  ${PROTO_FILES})
 
 add_executable (client ${client_SOURCES})
 
