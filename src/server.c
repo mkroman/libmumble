@@ -11,6 +11,7 @@
 #include "buffer.h"
 #include "protocol.h"
 #include "packets.h"
+#include "channel.h"
 #include "Mumble.pb-c.h"
 
 static int setnonblock(socket_t fd)
@@ -60,13 +61,14 @@ int mumble_server_init(mumble_t* context, mumble_server_t* server)
 	if (!server)
 		return 1;
 
-	server->host = 0;
+	server->host = NULL;
 	server->ctx = context;
+	server->channels = NULL;
 	mumble_buffer_init(&server->wbuffer);
 	mumble_buffer_init(&server->rbuffer);
 
 	ev_init(&server->ping_watcher, mumble_server_ping);
-	server->ping_watcher.repeat = 15;
+	server->ping_watcher.repeat = 5;
 	server->ping_watcher.data = server;
 
 	return 0;
@@ -106,11 +108,19 @@ int mumble_server_init_ssl(mumble_server_t* server)
 
 void mumble_server_destroy(mumble_server_t* server)
 {
+	mumble_channel_t* channel, *next;
+
 	close(server->fd);
 	SSL_free(server->ssl);
 
 	free(server->wbuffer.ptr);
 	free(server->rbuffer.ptr);
+
+	for (channel = server->channels; channel != NULL; channel = next)
+	{
+		next = channel->next;
+		free(channel);
+	}
 
 	ev_io_stop(server->ctx->loop, &server->watcher);
 }
@@ -388,6 +398,8 @@ void mumble_server_connected(mumble_server_t* server)
 
 void mumble_server_disconnected(mumble_server_t* server)
 {
+	mumble_channel_t* channel, *next;
+
 	LOG_DEBUG("Connection to %s:%d lost", server->host, server->port);
 
 	/* Stop the ping watcher. */
@@ -397,6 +409,12 @@ void mumble_server_disconnected(mumble_server_t* server)
 	/* Stop the io watcher. */
 	LOG_INFO("Stopping io watcher");
 	ev_io_stop(server->ctx->loop, &server->watcher);
+
+	for (channel = server->channels; channel != NULL; channel = next)
+	{
+		next = channel->next;
+		free(channel);
+	}
 }
 
 int mumble_server_send(mumble_server_t* server,

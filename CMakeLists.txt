@@ -18,6 +18,7 @@ set (libmumble_SOURCE
   src/buffer.c
   src/protocol.c
   src/packets.c
+  src/channel.c
   src/log.c)
 
 set (libmumble_HEADERS
@@ -26,6 +27,7 @@ set (libmumble_HEADERS
   include/buffer.h
   include/protocol.h
   include/packets.h
+  include/channel.h
   include/log.h)
 
 set (client_SOURCES

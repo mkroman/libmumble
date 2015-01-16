@@ -68,7 +68,11 @@ static const size_t kMumbleHeaderSize = (sizeof(uint16_t) + sizeof(uint32_t));
  */
 static const char* kMumbleClientName = "libmumble (github.com/mkroman/libmumble)";
 
+/*
+ * Forward declarations.
+ */
 struct mumble_t;
+struct mumble_channel_t;
 
 /**
  * The mumble server structure.
@@ -93,6 +97,8 @@ typedef struct mumble_server_t
 	mumble_buffer_t wbuffer;
 	/** A pointer to the client context. */
 	struct mumble_t* ctx;
+	/** A pointer to a linked list with channels. */
+	struct mumble_channel_t* channels;
 	/** A pointer to the next server in the linked list. */
 	struct mumble_server_t* next;
 } mumble_server_t;
