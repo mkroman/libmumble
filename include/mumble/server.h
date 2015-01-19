@@ -50,7 +50,7 @@
 
 #ifdef __cplusplus
 extern "C" {
-#endif /* __cplusplus */
+#endif
 
 #ifdef _WIN32
 typedef SOCKET socket_t;
@@ -66,7 +66,8 @@ static const size_t kMumbleHeaderSize = (sizeof(uint16_t) + sizeof(uint32_t));
 /**
  * The client name to be sent in the version message.
  */
-static const char* kMumbleClientName = "libmumble (github.com/mkroman/libmumble)";
+static const char* kMumbleClientName =
+    "libmumble (github.com/mkroman/libmumble)";
 
 /*
  * Forward declarations.
@@ -80,38 +81,38 @@ struct mumble_channel_t;
  */
 typedef struct mumble_server_t
 {
-	/** The server host. */
-	const char* host; 
-	/** The server port. */
-	uint32_t port;
-	/** The socket file descriptor. */
-	socket_t fd;
-	/** The associated SSL object. */
-	SSL* ssl;
-	/** The I/O watcher for the socket file descriptor. */
-	ev_io watcher;
-	/** The periodic heartbeat timer. */
-	ev_timer ping_watcher;
-	/** The read buffer. */
-	mumble_buffer_t rbuffer;
-	/** The write buffer. */
-	mumble_buffer_t wbuffer;
-	/** A pointer to the client context. */
-	struct mumble_t* ctx;
-	/** The connection session id. */
-	int session;
-	/** The maximum bandwidth we're allowed to use. */
-	int max_bandwidth;
-	/** The servers welcome text. */
-	const char* welcome_text;
-	/** The servers permission flags. */
-	uint64_t permissions;
-	/** A pointer to a linked list with channels. */
-	struct mumble_channel_t* channels;
-	/** A pointer to a linked list with users. */
-	struct mumble_user_t* users;
-	/** A pointer to the next server in the linked list. */
-	struct mumble_server_t* next;
+    /** The server host. */
+    const char* host;
+    /** The server port. */
+    uint32_t port;
+    /** The socket file descriptor. */
+    socket_t fd;
+    /** The associated SSL object. */
+    SSL* ssl;
+    /** The I/O watcher for the socket file descriptor. */
+    ev_io watcher;
+    /** The periodic heartbeat timer. */
+    ev_timer ping_watcher;
+    /** The read buffer. */
+    mumble_buffer_t rbuffer;
+    /** The write buffer. */
+    mumble_buffer_t wbuffer;
+    /** A pointer to the client context. */
+    struct mumble_t* ctx;
+    /** The connection session id. */
+    int session;
+    /** The maximum bandwidth we're allowed to use. */
+    int max_bandwidth;
+    /** The servers welcome text. */
+    const char* welcome_text;
+    /** The servers permission flags. */
+    uint64_t permissions;
+    /** A pointer to a linked list with channels. */
+    struct mumble_channel_t* channels;
+    /** A pointer to a linked list with users. */
+    struct mumble_user_t* users;
+    /** A pointer to the next server in the linked list. */
+    struct mumble_server_t* next;
 } mumble_server_t;
 
 socket_t mumble_server_create_socket();
@@ -162,7 +163,7 @@ int mumble_server_init_ssl(mumble_server_t* server);
  * @returns one if successfully handled, zero otherwise.
  */
 int mumble_server_handle_packet(mumble_server_t* server, uint16_t type,
-								uint32_t length);
+                                uint32_t length);
 
 /**
  * Cut the data received from a server into packets and handle them as needed.
@@ -178,7 +179,7 @@ int mumble_server_read_packet(mumble_server_t* server);
  *
  * @internal
  */
-void mumble_server_callback(EV_P_ ev_io *w, int revents);
+void mumble_server_callback(EV_P_ ev_io* w, int revents);
 
 /**
  * Called by the event loop when establishing a secure connection in order to
@@ -186,7 +187,7 @@ void mumble_server_callback(EV_P_ ev_io *w, int revents);
  *
  * @internal
  */
-void mumble_server_handshake(EV_P_ ev_io *w, int revents);
+void mumble_server_handshake(EV_P_ ev_io* w, int revents);
 
 /**
  * Called when a connection to a server has been established.
@@ -212,7 +213,7 @@ void mumble_server_disconnected(mumble_server_t* server);
  * @returns one if successful, zero otherwise.
  */
 int mumble_server_send(mumble_server_t* server,
-					   mumble_packet_type_t packet_type, void* message);
+                       mumble_packet_type_t packet_type, void* message);
 
 /**
  * Send a version packet to the server.
@@ -232,8 +233,8 @@ int mumble_server_send_version(mumble_server_t* server);
  *
  * @returns one if successful, zero otherwise.
  */
-int mumble_server_send_authenticate(mumble_server_t* server, 
-									const char* username, const char* password);
+int mumble_server_send_authenticate(mumble_server_t* server,
+                                    const char* username, const char* password);
 
 /**
  * Send a ping packet to the server.
@@ -253,6 +254,6 @@ void mumble_server_ping(EV_P_ ev_timer* w, int revents);
 
 #ifdef __cplusplus
 }
-#endif /* __cplusplus */
+#endif
 
 #endif /* MUMBLE_SERVER_H */

@@ -23,23 +23,23 @@ static mumble_t g_mumble;
 
 int main(int argc, char** argv)
 {
-	static const char* kDefaultHost = "chronicle.nodes.uplink.io";
-	const char* host = kDefaultHost;
+    static const char* kDefaultHost = "chronicle.nodes.uplink.io";
+    const char* host = kDefaultHost;
 
-	if (argc > 1)
-		host = argv[1];
+    if (argc > 1)
+        host = argv[1];
 
-	mumble_settings_t settings;
+    mumble_settings_t settings;
 
-	settings.key_file = "private.key";
-	settings.cert_file = "public.crt";
+    settings.key_file = "private.key";
+    settings.cert_file = "public.crt";
 
-	LOG_INFO("libmumble v0.1");
+    LOG_INFO("libmumble v0.1");
 
-	mumble_init(&g_mumble, settings);
-	mumble_connect(&g_mumble, host, 64738);
-	mumble_run(&g_mumble);
-	mumble_destroy(&g_mumble);
+    mumble_init(&g_mumble, settings);
+    mumble_connect(&g_mumble, host, 64738);
+    mumble_run(&g_mumble);
+    mumble_destroy(&g_mumble);
 
-	return 0;
+    return 0;
 }

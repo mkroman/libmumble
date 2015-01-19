@@ -34,19 +34,9 @@
 # define MUMBLE_API extern
 #endif
 
-#define LOG(...)                      \
-	do {                              \
-		fprintf(stdout, __VA_ARGS__); \
-	} while (0)
-
-#define ERR(...)                      \
-	do {                              \
-		fprintf(stderr, __VA_ARGS__); \
-	} while (0)
-
 #ifdef __cplusplus
 extern "C" {
-#endif /* __cplusplus */
+#endif
 
 /**
  * Forward declarations.
@@ -58,9 +48,9 @@ struct mumble_server_t;
  */
 typedef struct mumble_version_t
 {
-	int major; /**< The major version number. */
-	int minor; /**< The minor version number. */
-	int patch; /**< The patch version number. */
+    int major; /**< The major version number. */
+    int minor; /**< The minor version number. */
+    int patch; /**< The patch version number. */
 } mumble_version_t;
 
 /**
@@ -75,8 +65,8 @@ MUMBLE_API const mumble_version_t kMumbleClientVersion;
  */
 typedef struct mumble_settings_t
 {
-	const char* key_file; /**< pointer to a path to the client private key. */
-	const char* cert_file; /**< pointer to a path to the client certificate. */
+    const char* key_file;  /**< pointer to a path to the client private key. */
+    const char* cert_file; /**< pointer to a path to the client certificate. */
 } mumble_settings_t;
 
 /**
@@ -86,22 +76,22 @@ typedef struct mumble_settings_t
  */
 typedef struct mumble_t
 {
-	/** 
-	 * Number of servers attached to this context.
-	 *
-	 * This is useful for getting the number of servers in constant time.
-	 */
-	int num_servers;
-	/** Pointer to an SSL context that will be inherited by new servers. */
-	SSL_CTX* ssl_ctx;
-	/** Pointer to the event loop this context operates on. */
-	struct ev_loop* loop;
-	/** Client settings for this context. */
-	mumble_settings_t settings;
-	/** Internal buffer that is used by the library. */
-	char buffer[512];
-	/** Linked list of servers attached to this client. */
-	struct mumble_server_t* servers;
+    /**
+     * Number of servers attached to this context.
+     *
+     * This is useful for getting the number of servers in constant time.
+     */
+    int num_servers;
+    /** Pointer to an SSL context that will be inherited by new servers. */
+    SSL_CTX* ssl_ctx;
+    /** Pointer to the event loop this context operates on. */
+    struct ev_loop* loop;
+    /** Client settings for this context. */
+    mumble_settings_t settings;
+    /** Internal buffer that is used by the library. */
+    char buffer[512];
+    /** Linked list of servers attached to this client. */
+    struct mumble_server_t* servers;
 } mumble_t;
 
 /**
@@ -160,6 +150,6 @@ int mumble_run(mumble_t* context);
 
 #ifdef __cplusplus
 }
-#endif /* __cplusplus */
+#endif
 
 #endif /* MUMBLE_H */

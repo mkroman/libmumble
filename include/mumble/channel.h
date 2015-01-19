@@ -15,12 +15,14 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library.
  */
+
 /**
  * @file channel.h
  * @author Mikkel Kroman
  * @date 16 Jan 2015
  * @brief Channel functions and data structures.
  */
+
 #include <stdint.h>
 
 #pragma once
@@ -29,18 +31,18 @@
 
 typedef enum mumble_channel_flags_t
 {
-	MUMBLE_CHANNEL_TEMPORARY = (1 << 1)
+    MUMBLE_CHANNEL_TEMPORARY = (1 << 1)
 } mumble_channel_flags_t;
 
 typedef struct mumble_channel_t
 {
-	int id;
-	int parent;
-	char* name;
-	char* description;
-	int position;
-	mumble_channel_flags_t flags;
-	struct mumble_channel_t* next;
+    int id;
+    int parent;
+    char* name;
+    char* description;
+    int position;
+    mumble_channel_flags_t flags;
+    struct mumble_channel_t* next;
 } mumble_channel_t;
 
 /**

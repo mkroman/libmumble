@@ -33,13 +33,13 @@
  */
 typedef enum mumble_user_flags_t
 {
-	MUMBLE_USER_MUTE = (1 << 1),
-	MUMBLE_USER_DEAF = (1 << 2),
-	MUMBLE_USER_SUPPRESS = (1 << 3),
-	MUMBLE_USER_SELF_MUTE = (1 << 4),
-	MUMBLE_USER_SELF_DEAF = (1 << 5),
-	MUMBLE_USER_PRIORITY_SPEAKER = (1 << 6),
-	MUMBLE_USER_RECORDING = (1 << 7)
+    MUMBLE_USER_MUTE             = (1 << 1),
+    MUMBLE_USER_DEAF             = (1 << 2),
+    MUMBLE_USER_SUPPRESS         = (1 << 3),
+    MUMBLE_USER_SELF_MUTE        = (1 << 4),
+    MUMBLE_USER_SELF_DEAF        = (1 << 5),
+    MUMBLE_USER_PRIORITY_SPEAKER = (1 << 6),
+    MUMBLE_USER_RECORDING        = (1 << 7)
 } mumble_user_flags_t;
 
 /**
@@ -47,15 +47,15 @@ typedef enum mumble_user_flags_t
  */
 typedef struct mumble_user_t
 {
-	uint32_t id;
-	uint32_t session;
-	uint32_t actor;
-	char* name;
-	uint32_t channel_id;
-	char* comment;
-	char* hash;
-	mumble_user_flags_t flags;
-	struct mumble_user_t* next;
+    uint32_t id;
+    uint32_t session;
+    uint32_t actor;
+    char* name;
+    uint32_t channel_id;
+    char* comment;
+    char* hash;
+    mumble_user_flags_t flags;
+    struct mumble_user_t* next;
 } mumble_user_t;
 
 /**

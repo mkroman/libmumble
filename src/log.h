@@ -47,8 +47,8 @@
  * Arguments passed to printf where this is used are:
  * timestamp, file, level color, level string and message.
  */
-#define LOG_FORMAT \
-	ANSI_BOLD "%s" ANSI_RESET " %-15s %s" ANSI_BOLD "%-8s" ANSI_RESET "%s\n"
+#define LOG_FORMAT                                                             \
+    ANSI_BOLD "%s" ANSI_RESET " %-15s %s" ANSI_BOLD "%-8s" ANSI_RESET "%s\n"
 
 #ifndef LOG_LEVEL
 # define LOG_LEVEL 4
@@ -59,35 +59,35 @@
  */
 typedef enum log_level_t
 {
-	LOG_LEVEL_FATAL = 1,
-	LOG_LEVEL_ERROR = 2,
-	LOG_LEVEL_WARN  = 3,
-	LOG_LEVEL_DEBUG = 4,
-	LOG_LEVEL_INFO  = 5
+    LOG_LEVEL_FATAL = 1,
+    LOG_LEVEL_ERROR = 2,
+    LOG_LEVEL_WARN  = 3,
+    LOG_LEVEL_DEBUG = 4,
+    LOG_LEVEL_INFO  = 5
 } log_level_t;
 
 /**
  * Strings representing each debug level.
  */
 static const char* g_log_level_strings[] = {
-	"Fatal",   /* LOG_LEVEL_FATAL */
-	"Error",   /* LOG_LEVEL_ERROR */
-	"Warning", /* LOG_LEVEL_WARN */
-	"Debug",   /* LOG_LEVEL_DEBUG */
-	"Info",    /* LOG_LEVEL_INFO */
-	0
+    "Fatal",   /* LOG_LEVEL_FATAL */
+    "Error",   /* LOG_LEVEL_ERROR */
+    "Warning", /* LOG_LEVEL_WARN */
+    "Debug",   /* LOG_LEVEL_DEBUG */
+    "Info",    /* LOG_LEVEL_INFO */
+    0
 };
 
 /**
  * ANSI colors for the different log levels.
  */
 static const char* g_log_level_colors[] = {
-	ANSI_RED,    /* LOG_LEVEL_FATAL */
-	ANSI_RED,    /* LOG_LEVEL_ERROR */
-	ANSI_YELLOW, /* LOG_LEVEL_WARN */
-	ANSI_WHITE,  /* LOG_LEVEL_DEBUG */
-	ANSI_BLUE,   /* LOG_LEVEL_INFO */
-	0
+    ANSI_RED,    /* LOG_LEVEL_FATAL */
+    ANSI_RED,    /* LOG_LEVEL_ERROR */
+    ANSI_YELLOW, /* LOG_LEVEL_WARN */
+    ANSI_WHITE,  /* LOG_LEVEL_DEBUG */
+    ANSI_BLUE,   /* LOG_LEVEL_INFO */
+    0
 };
 
 /**
@@ -113,48 +113,46 @@ static const int kLogLevel = LOG_LEVEL;
  * @param[in] ...    arguments to be formatted into the message.
  */
 void log_write(log_level_t level, const char* func, const char* file,
-			   unsigned long line, const char* format, ...);
+               unsigned long line, const char* format, ...);
 
-#define __FILENAME__ (strrchr(__FILE__, '/') ? \
-					  strrchr(__FILE__, '/') + 1 : __FILE__)
+#define __FILENAME__                                                           \
+	(strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 
-#define LOG_WRITE(level, format, ...) \
-	do { log_write(level, __FUNCTION__, __FILENAME__, __LINE__, format, \
-					## __VA_ARGS__); } while(0)
+#define LOG_WRITE(level, format, ...)                                          \
+    do                                                                         \
+    {                                                                          \
+        log_write(level, __FUNCTION__, __FILENAME__, __LINE__, format,         \
+                  ##__VA_ARGS__);                                              \
+    } while (0)
 
 #if LOG_LEVEL >= 1
-# define LOG_FATAL(format, ...) \
-	LOG_WRITE(LOG_LEVEL_FATAL, format, ## __VA_ARGS__)
+#define LOG_FATAL(format, ...) LOG_WRITE(LOG_LEVEL_FATAL, format, ##__VA_ARGS__)
 #else
-# define LOG_FATAL(...)
+#define LOG_FATAL(...)
 #endif
 
 #if LOG_LEVEL >= 2
-# define LOG_ERROR(format, ...) \
-	LOG_WRITE(LOG_LEVEL_ERROR, format, ## __VA_ARGS__)
+#define LOG_ERROR(format, ...) LOG_WRITE(LOG_LEVEL_ERROR, format, ##__VA_ARGS__)
 #else
-# define LOG_ERROR(...)
+#define LOG_ERROR(...)
 #endif
 
 #if LOG_LEVEL >= 3
-# define LOG_WARN(format, ...) \
-	LOG_WRITE(LOG_LEVEL_WARN, format, ## __VA_ARGS__)
+#define LOG_WARN(format, ...) LOG_WRITE(LOG_LEVEL_WARN, format, ##__VA_ARGS__)
 #else
-# define LOG_WARN(...)
+#define LOG_WARN(...)
 #endif
 
 #if LOG_LEVEL >= 4
-# define LOG_DEBUG(format, ...) \
-	LOG_WRITE(LOG_LEVEL_DEBUG, format, ## __VA_ARGS__)
+#define LOG_DEBUG(format, ...) LOG_WRITE(LOG_LEVEL_DEBUG, format, ##__VA_ARGS__)
 #else
-# define LOG_DEBUG(...)
+#define LOG_DEBUG(...)
 #endif
 
 #if LOG_LEVEL >= 5
-# define LOG_INFO(format, ...) \
-	LOG_WRITE(LOG_LEVEL_INFO, format, ## __VA_ARGS__)
+#define LOG_INFO(format, ...) LOG_WRITE(LOG_LEVEL_INFO, format, ##__VA_ARGS__)
 #else
-# define LOG_INFO(...)
+#define LOG_INFO(...)
 #endif
 
 #endif
