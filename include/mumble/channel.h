@@ -23,11 +23,17 @@
  * @brief Channel functions and data structures.
  */
 
-#include <stdint.h>
-
 #pragma once
 #ifndef MUMBLE_CHANNEL_H
 #define MUMBLE_CHANNEL_H
+
+#include <stdint.h>
+
+#include <mumble/external.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef enum mumble_channel_flags_t
 {
@@ -55,8 +61,14 @@ typedef struct mumble_channel_t
 mumble_channel_t* mumble_channel_init(mumble_channel_t* channel);
 
 /**
- * Destroy a mumble channel structure.
+ * Free all memory used by a channel struct.
+ *
+ * @param[in] channel a pointer to the channel.
  */
-void mumble_channel_destroy(mumble_channel_t* channel);
+MUMBLE_API void mumble_channel_free(mumble_channel_t* channel);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

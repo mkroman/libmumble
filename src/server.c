@@ -483,13 +483,13 @@ void mumble_server_disconnected(struct mumble_server_t* server)
     for (channel = server->channels; channel != NULL; channel = channelptr)
     {
         channelptr = channel->next;
-        mumble_channel_destroy(channel);
+        mumble_channel_free(channel);
     }
 
     for (user = server->users; user != NULL; user = userptr)
     {
         userptr = user->next;
-        mumble_user_destroy(user);
+        mumble_user_free(user);
     }
 
     server->channels = NULL;

@@ -31,10 +31,11 @@
 # include <netdb.h>
 #endif /* defined(__unix__) */
 
-#include <openssl/ssl.h>
 #include <ev.h>
+#include <openssl/ssl.h>
 
 #include <mumble/mumble.h>
+#include <mumble/external.h>
 
 /**
  * @file server.h
@@ -60,12 +61,13 @@ struct mumble_server_t;
  * Instantiates a new server. Use this object with `mumble_connect` in order to
  * connect to a remote server.
  */
-struct mumble_server_t* mumble_server_new(const char* host, uint32_t port);
+MUMBLE_API struct mumble_server_t* mumble_server_new(const char* host,
+                                                     uint32_t port);
 
 /**
  * Close the connection and free all used memory.
  */
-void mumble_server_free(struct mumble_server_t* server);
+MUMBLE_API void mumble_server_free(struct mumble_server_t* server);
 
 /**
  * Get the servers host or IP address.
@@ -84,3 +86,4 @@ mumble_server_get_port(const struct mumble_server_t* server);
 #endif
 
 #endif
+

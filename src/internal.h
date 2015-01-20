@@ -25,13 +25,13 @@
 * @brief Internal header for structured data.
 */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #pragma once
 #ifndef MUMBLE_INTERNAL_H
 #define MUMBLE_INTERNAL_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /**
  * The mumble client structure, also referenced to as the `client context`.
@@ -58,8 +58,17 @@ struct mumble_t
     struct mumble_server_t* servers;
 };
 
-#endif
+/**
+ * Initialize a mumble client structure.
+ *
+ * @param client a pointer to allocated memory large enough to hold mumble_t.
+ *
+ * @returns zero on success, non-zero otherwise.
+ */
+MUMBLE_API int mumble_init(struct mumble_t* client);
 
 #ifdef __cplusplus
 }
+#endif
+
 #endif

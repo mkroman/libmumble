@@ -19,6 +19,8 @@
 #include <stdint.h>
 #include <openssl/ssl.h>
 
+#include <mumble/external.h>
+
 /**
 * @file mumble.h
 * @author Mikkel Kroman
@@ -26,19 +28,15 @@
 * @brief Client-related functions for the mumble client context.
 */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #pragma once
 #ifndef MUMBLE_H
 #define MUMBLE_H
 
-#ifdef __unix__
-# define MUMBLE_API extern
+#ifdef __cplusplus
+extern "C" {
 #endif
 
-/**
+/*
  * Forward declarations.
  */
 struct mumble_t;
@@ -66,46 +64,36 @@ MUMBLE_API const mumble_version_t kMumbleClientVersion;
  */
 typedef struct mumble_settings_t
 {
-    const char* key_file;  /**< pointer to a path to the client private key. */
-    const char* cert_file; /**< pointer to a path to the client certificate. */
+	/** Pointer to a path to the client private key. */
+    const char* key_file;
+	/** Pointer to a path to the client certificate. */
+    const char* cert_file;
 } mumble_settings_t;
 
 /**
  * Create a new mumble client.
+ * 
+ * @param[in] settings a mumble settings structure.
+ *
+ * @see mumble_settings_t
+ * @returns a pointer to an instantiated client. use `mumble_free` to destroy
+ *   this client.
  */
 MUMBLE_API struct mumble_t* mumble_new(mumble_settings_t settings);
 
 /**
- * Close all connections, and free any memory used.
+ * Close all connections and free all memory.
+ *
+ * @param[in] client a pointer to a client.
  */
 MUMBLE_API void mumble_free(struct mumble_t* client);
-
-
-/**
- * Initialize a new mumble client context.
- *
- * @param client   a pointer to allocated memory large enough to hold mumble_t.
- * @param settings a settings struct that defines how the client behaves.
- *
- * @returns zero on success, non-zero otherwise.
- */
-MUMBLE_API int mumble_init(struct mumble_t* client);
-
-/**
- * Destroy the mumble context, freeing all associated resources.
- *
- * @param context a pointer to the initialized mumble client.
- *
- * @returns zero on success, non-zero otherwise.
- */
-// int mumble_destroy(mumble_t* context);
 
 /**
  * @brief Connect to a mumble server.
  *
- * @param context the initialized mumble client.
- * @param host    the hostname or address of the remote host.
- * @param port    the port of the remote host.
+ * @param client the mumble client.
+ * @param server the server to connect to. can be created using
+ *   `mumble_server_new`.
  *
  * @returns zero on success, non-zero otherwise.
  */
@@ -113,7 +101,6 @@ int mumble_connect(struct mumble_t* client, struct mumble_server_t* server);
 
 /**
  * Send the client version message to the server.
- *
  */
 int mumble_send_version(struct mumble_t* context,
                         struct mumble_server_t* server);

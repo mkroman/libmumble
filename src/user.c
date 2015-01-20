@@ -12,7 +12,7 @@ mumble_user_t* mumble_user_init(mumble_user_t* user)
     return user;
 }
 
-void mumble_user_destroy(mumble_user_t* user)
+void mumble_user_free(mumble_user_t* user)
 {
     free(user->name);
     free(user->comment);

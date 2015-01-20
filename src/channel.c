@@ -10,7 +10,7 @@ mumble_channel_t* mumble_channel_init(mumble_channel_t* channel)
     return channel;
 }
 
-void mumble_channel_destroy(mumble_channel_t* channel)
+void mumble_channel_free(mumble_channel_t* channel)
 {
     if (!channel)
         return;

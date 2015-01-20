@@ -15,7 +15,6 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library.
  */
-#include <stdint.h>
 
 /**
  * @file user.h
@@ -27,6 +26,14 @@
 #pragma once
 #ifndef MUMBLE_USER_H
 #define MUMBLE_USER_H
+
+#include <stdint.h>
+
+#include <mumble/external.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /**
  * Mumble user flags.
@@ -60,12 +67,22 @@ typedef struct mumble_user_t
 
 /**
  * Initialize a mumble user struct.
+ *
+ * @param[in] user a pointer to a struct to initialize.
+ *
+ * @returns pointer to the user struct.
  */
-mumble_user_t* mumble_user_init(mumble_user_t* user);
+MUMBLE_API mumble_user_t* mumble_user_init(mumble_user_t* user);
 
 /**
- * Destroy a mumble user struct.
+ * Free all memory used by a user struct.
+ *
+ * @param[in] user a pointer to the user.
  */
-void mumble_user_destroy(mumble_user_t* user);
+MUMBLE_API void mumble_user_free(mumble_user_t* user);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
