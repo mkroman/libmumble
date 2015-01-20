@@ -67,6 +67,15 @@ struct mumble_t
  */
 MUMBLE_API int mumble_init(struct mumble_t* client);
 
+/**
+ * Initialize the SSL context of a mumble context.
+ *
+ * @param[in] context a pointer to the mumble context.
+ *
+ * @returns zero on success, non-zero otherwise.
+ */
+int mumble_ssl_init(struct mumble_t* context);
+
 #ifdef __cplusplus
 }
 #endif

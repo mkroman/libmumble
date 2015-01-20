@@ -106,11 +106,9 @@ int mumble_server_init(struct mumble_server_t* server)
     mumble_buffer_init(&server->wbuffer);
     mumble_buffer_init(&server->rbuffer);
 
-    /*
-     * ev_init(&server->ping_watcher, mumble_server_ping);
-     * server->ping_watcher.repeat = 5;
-     * server->ping_watcher.data = server;
-     */
+    ev_init(&server->ping_timer, mumble_server_ping);
+    server->ping_timer.repeat = 5;
+    server->ping_timer.data = server;
 
     return 0;
 }
@@ -421,14 +419,12 @@ int mumble_server_read_packet(struct mumble_server_t* server)
 size_t mumble_server_write(struct mumble_server_t* server, char* data,
                            size_t length)
 {
-    size_t result;
-
-    result = mumble_buffer_write(&server->wbuffer, (uint8_t*)data, length);
-
+    size_t result =
+        mumble_buffer_write(&server->wbuffer, (uint8_t*)data, length);
     ev_io* watcher = &server->watcher;
     struct ev_loop* loop = server->client->loop;
 
-    // Mark the watcher that we want to read.
+    /* Modify the watchers event flags. */
     EV_IO_RESET(loop, watcher, EV_READ | EV_WRITE);
 
     return result;
@@ -458,8 +454,8 @@ void mumble_server_connected(struct mumble_server_t* server)
 {
     LOG_DEBUG("Connected to %s:%d", server->host, server->port);
 
-    /* Start the ping watcher. */
-    // ev_timer_start(server->client->loop, &server->ping_watcher);
+    /* Start the ping timer. */
+    ev_timer_start(server->client->loop, &server->ping_timer);
 
     mumble_server_send_version(server);
     mumble_server_send_authenticate(server, "libmumble", "");
@@ -472,9 +468,9 @@ void mumble_server_disconnected(struct mumble_server_t* server)
 
     LOG_DEBUG("Connection to %s:%d lost", server->host, server->port);
 
-    /* Stop the ping watcher. */
-    LOG_INFO("Stopping ping watcher");
-    //ev_timer_stop(server->client->loop, &server->ping_watcher);
+    /* Stop the ping timer. */
+    LOG_INFO("Stopping ping timer");
+    ev_timer_stop(server->client->loop, &server->ping_timer);
 
     /* Stop the io watcher. */
     LOG_INFO("Stopping io watcher");

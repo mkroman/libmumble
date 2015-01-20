@@ -16,9 +16,6 @@
  * License along with this library.
  */
 
-#include <ev.h>
-#include <mumble/server.h>
-
 /**
  * @file iserver.h
  * @author Mikkel Kroman
@@ -26,12 +23,14 @@
  * @brief Internal server structures and functions.
  */
 
-#include "buffer.h"
-#include "protocol.h"
-
 #pragma once
 #ifndef MUMBLE_INTERNAL_SERVER_H
 #define MUMBLE_INTERNAL_SERVER_H
+
+#include <mumble/server.h>
+
+#include "buffer.h"
+#include "protocol.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -44,6 +43,7 @@ typedef int socket_t;
 #endif
 
 /**
+ * @private
  * The mumble server structure.
  */
 struct mumble_server_t
@@ -59,7 +59,7 @@ struct mumble_server_t
     /** The I/O watcher for the socket file descriptor. */
     ev_io watcher;
     /** The periodic heartbeat timer. */
-    ev_timer ping_watcher;
+    ev_timer ping_timer;
     /** The read buffer. */
     mumble_buffer_t rbuffer;
     /** The write buffer. */
@@ -82,9 +82,13 @@ struct mumble_server_t
     struct mumble_server_t* next;
 };
 
+/**
+ * @private
+ */
 socket_t mumble_server_create_socket();
 
 /**
+ * @private
  * Create a socket and connect to the remote host.
  *
  * @param[in] server a pointer to an initialized server struct.
@@ -95,6 +99,7 @@ socket_t mumble_server_create_socket();
 int mumble_server_connect(struct mumble_server_t* server);
 
 /**
+ * @private
  * Initialize a server struct.
  *
  * @param[in] server a pointer to allocated memory space.
@@ -105,6 +110,7 @@ int mumble_server_init(struct mumble_server_t* server);
 
 
 /**
+ * @private
  * Initialize SSL on a server struct.
  *
  * @param[in] server a pointer to a mumble server struct.
@@ -114,11 +120,15 @@ int mumble_server_init(struct mumble_server_t* server);
 int mumble_server_ssl_init(struct mumble_server_t* server);
 
 /**
- * Close the connection.
+ * @private
+ * Forcefully close the connection.
+ *
+ * @param[in] server a pointer to the server.
  */
 void mumble_server_close(struct mumble_server_t* server);
 
 /**
+ * @private
  * Parse and handle a packet received from a server.
  *
  * @param[in] server a pointer to the server.
@@ -131,6 +141,7 @@ int mumble_server_handle_packet(struct mumble_server_t* server, uint16_t type,
                                 uint32_t length);
 
 /**
+ * @private
  * Cut the data received from a server into packets and handle them as needed.
  *
  * @param[in] server a pointer to the server.
@@ -140,21 +151,20 @@ int mumble_server_handle_packet(struct mumble_server_t* server, uint16_t type,
 int mumble_server_read_packet(struct mumble_server_t* server);
 
 /**
+ * @private
  * Called by the event loop when the server connection is readable or writable.
- *
- * @internal
  */
 void mumble_server_callback(EV_P_ ev_io* w, int revents);
 
 /**
+ * @private
  * Called by the event loop when establishing a secure connection in order to
  * perform the handshake.
- *
- * @internal
  */
 void mumble_server_handshake(EV_P_ ev_io* w, int revents);
 
 /**
+ * @private
  * Called when a connection to a server has been established.
  *
  * @param[in] server a pointer to the server.
@@ -162,6 +172,7 @@ void mumble_server_handshake(EV_P_ ev_io* w, int revents);
 void mumble_server_connected(struct mumble_server_t* server);
 
 /**
+ * @private
  * Called when a connection to a server has been lost.
  *
  * @param[in] server a pointer to the server.
@@ -169,6 +180,7 @@ void mumble_server_connected(struct mumble_server_t* server);
 void mumble_server_disconnected(struct mumble_server_t* server);
 
 /**
+ * @private
  * Send a packet to the server.
  *
  * @param[in] server a pointer to the server.
@@ -181,6 +193,7 @@ int mumble_server_send(struct mumble_server_t* server,
                        mumble_packet_type_t packet_type, void* message);
 
 /**
+ * @private
  * Send a version packet to the server.
  *
  * @param[in] server a pointer to the server.
@@ -190,6 +203,7 @@ int mumble_server_send(struct mumble_server_t* server,
 int mumble_server_send_version(struct mumble_server_t* server);
 
 /**
+ * @private
  * Send a authentication packet to the server.
  *
  * @param[in] server a pointer to the server.
@@ -202,6 +216,7 @@ int mumble_server_send_authenticate(struct mumble_server_t* server,
                                     const char* username, const char* password);
 
 /**
+ * @private
  * Send a ping packet to the server.
  *
  * @param[in] server a pointer to the server.
@@ -211,9 +226,8 @@ int mumble_server_send_authenticate(struct mumble_server_t* server,
 int mumble_server_send_ping(struct mumble_server_t* server);
 
 /**
+ * @private
  * Called periodically to send a ping packet to the server.
- *
- * @internal
  */
 void mumble_server_ping(EV_P_ ev_timer* w, int revents);
 

@@ -28,15 +28,6 @@
 
 const mumble_version_t kMumbleClientVersion = {1, 2, 8};
 
-/**
- * Initialize the SSL context of a mumble context.
- *
- * @param[in] context a pointer to the mumble context.
- *
- * @returns zero on success, non-zero otherwise.
- */
-int mumble_ssl_init(struct mumble_t* context);
-
 struct mumble_t* mumble_new(mumble_settings_t settings)
 {
     struct mumble_t* client = (struct mumble_t*)malloc(sizeof(struct mumble_t));
@@ -72,7 +63,7 @@ int mumble_init(struct mumble_t* client)
     if (mumble_ssl_init(client) != 0)
         return 1;
 
-    // Initialize a new event loop.
+    /* Initialize a new event loop. */
     client->loop = ev_loop_new(0);
 
     return 0;
@@ -97,7 +88,7 @@ int mumble_ssl_init(struct mumble_t* client)
     if (!SSL_CTX_use_certificate_chain_file(client->ssl_ctx,
                                             client->settings.cert_file))
     {
-        LOG_ERROR("SSL_CTX_use_certificate_chain_file failed (%s)\n",
+        LOG_ERROR("SSL_CTX_use_certificate_chain_file failed (%s)",
                   client->settings.cert_file);
 
         return 1;
@@ -106,14 +97,14 @@ int mumble_ssl_init(struct mumble_t* client)
     if (!SSL_CTX_use_PrivateKey_file(client->ssl_ctx, client->settings.key_file,
                                      SSL_FILETYPE_PEM))
     {
-        LOG_ERROR("SSL_CTX_use_PrivateKey_file failed\n");
+        LOG_ERROR("SSL_CTX_use_PrivateKey_file failed");
 
         return 1;
     }
 
     if (!SSL_CTX_check_private_key(client->ssl_ctx))
     {
-        LOG_ERROR("Invalid cert/key pair\n");
+        LOG_ERROR("Invalid cert/key pair");
 
         return 1;
     }
@@ -123,9 +114,12 @@ int mumble_ssl_init(struct mumble_t* client)
 
 void mumble_free(struct mumble_t* client)
 {
-    for (struct mumble_server_t* server = client->servers; server != NULL;
-         server = server->next)
-        mumble_server_free(server);
+    struct mumble_server_t* ptr, *next;
+    for (ptr = client->servers; ptr != NULL; ptr = next)
+    {
+        next = ptr->next;
+        mumble_server_free(ptr);
+    }
 
     /* Free SSL resources. */
     SSL_CTX_free(client->ssl_ctx);
@@ -145,32 +139,18 @@ int mumble_connect(struct mumble_t* client, struct mumble_server_t* server)
     else
         server->next = NULL;
 
-    client->servers = server;
     client->num_servers++;
+    client->servers = server;
     server->client = client;
 
-    //if (mumble_server_connect(server) != 0)
-    //    return 1;
+    if (mumble_server_connect(server) != 0)
+        return 1;
 
     return 0;
 }
 
 int mumble_run(struct mumble_t* client)
 {
-    for (struct mumble_server_t* server = client->servers; server != NULL;
-         server = server->next)
-    {
-        LOG_DEBUG("Connecting to %s:%d", server->host, server->port);
-
-        if (mumble_server_connect(server) != 0)
-        {
-            LOG_ERROR("mumble_server_connect failed for server %s",
-                      server->host);
-
-            return 1;
-        }
-    }
-
     ev_loop(client->loop, 0);
 
     return 0;
