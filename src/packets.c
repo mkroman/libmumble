@@ -6,9 +6,10 @@
 #include "protocol.h"
 #include "packets.h"
 #include "log.h"
+#include "iserver.h"
 #include "Mumble.pb-c.h"
 
-int mumble_packet_handle_ping(mumble_server_t* srv, const uint8_t* body,
+int mumble_packet_handle_ping(struct mumble_server_t* srv, const uint8_t* body,
                               uint32_t length)
 {
     MumbleProto__Ping* ping = mumble_proto__ping__unpack(NULL, length, body);
@@ -20,8 +21,8 @@ int mumble_packet_handle_ping(mumble_server_t* srv, const uint8_t* body,
     return 1;
 }
 
-int mumble_packet_handle_crypt_setup(mumble_server_t* srv, const uint8_t* body,
-                                     uint32_t length)
+int mumble_packet_handle_crypt_setup(struct mumble_server_t* srv,
+                                     const uint8_t* body, uint32_t length)
 {
     MumbleProto__CryptSetup* crypt_setup =
         mumble_proto__crypt_setup__unpack(NULL, length, body);
@@ -33,7 +34,7 @@ int mumble_packet_handle_crypt_setup(mumble_server_t* srv, const uint8_t* body,
     return 1;
 }
 
-int mumble_packet_handle_codec_version(mumble_server_t* srv,
+int mumble_packet_handle_codec_version(struct mumble_server_t* srv,
                                        const uint8_t* body, uint32_t length)
 {
     MumbleProto__CodecVersion* codec_version =
@@ -45,8 +46,8 @@ int mumble_packet_handle_codec_version(mumble_server_t* srv,
     return 1;
 }
 
-int mumble_packet_handle_server_sync(mumble_server_t* srv, const uint8_t* body,
-                                     uint32_t length)
+int mumble_packet_handle_server_sync(struct mumble_server_t* srv,
+                                     const uint8_t* body, uint32_t length)
 {
     MumbleProto__ServerSync* server_sync =
         mumble_proto__server_sync__unpack(NULL, length, body);
@@ -71,7 +72,7 @@ int mumble_packet_handle_server_sync(mumble_server_t* srv, const uint8_t* body,
     return 1;
 }
 
-int mumble_packet_handle_channel_state(mumble_server_t* srv,
+int mumble_packet_handle_channel_state(struct mumble_server_t* srv,
                                        const uint8_t* body, uint32_t length)
 {
     mumble_channel_t* channel = NULL;
@@ -140,8 +141,8 @@ int mumble_packet_handle_channel_state(mumble_server_t* srv,
 
     return 1;
 }
-int mumble_packet_handle_user_state(mumble_server_t* srv, const uint8_t* body,
-                                    uint32_t length)
+int mumble_packet_handle_user_state(struct mumble_server_t* srv,
+                                    const uint8_t* body, uint32_t length)
 {
     int new_user = 0;
     mumble_user_t* user;
@@ -272,8 +273,8 @@ int mumble_packet_handle_user_state(mumble_server_t* srv, const uint8_t* body,
     return 1;
 }
 
-int mumble_packet_handle_version(mumble_server_t* srv, const uint8_t* body,
-                                 uint32_t length)
+int mumble_packet_handle_version(struct mumble_server_t* srv,
+                                 const uint8_t* body, uint32_t length)
 {
     MumbleProto__Version* version =
         mumble_proto__version__unpack(NULL, length, body);

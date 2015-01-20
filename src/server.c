@@ -13,7 +13,18 @@
 #include "Mumble.pb-c.h"
 #include "protocol.h"
 #include "packets.h"
+#include "buffer.h"
+#include "iserver.h"
+#include "internal.h"
 #include "log.h"
+
+#define EV_IO_RESET(x, y, z)                                                   \
+    do                                                                         \
+    {                                                                          \
+        ev_io_stop((x), (y));                                                  \
+        ev_io_set((y), (y)->fd, (z));                                          \
+        ev_io_start((x), (y));                                                 \
+    } while (0)
 
 static int setnonblock(socket_t fd)
 {
@@ -57,32 +68,46 @@ socket_t mumble_server_create_socket()
     return fd;
 }
 
-int mumble_server_init(mumble_t* context, mumble_server_t* server)
+struct mumble_server_t* mumble_server_new(const char* host, uint32_t port)
+{
+    struct mumble_server_t* server =
+        (struct mumble_server_t*)malloc(sizeof(struct mumble_server_t));
+
+    if (!server)
+        return NULL;
+
+    mumble_server_init(server);
+    server->host = host;
+    server->port = port;
+
+    return server;
+}
+
+int mumble_server_init(struct mumble_server_t* server)
 {
     if (!server)
         return 1;
 
-    server->host = NULL;
-    server->ctx = context;
     server->users = NULL;
+    server->client = NULL;
     server->channels = NULL;
     server->welcome_text = NULL;
     mumble_buffer_init(&server->wbuffer);
     mumble_buffer_init(&server->rbuffer);
 
-    ev_init(&server->ping_watcher, mumble_server_ping);
-    server->ping_watcher.repeat = 5;
-    server->ping_watcher.data = server;
+    /*
+     * ev_init(&server->ping_watcher, mumble_server_ping);
+     * server->ping_watcher.repeat = 5;
+     * server->ping_watcher.data = server;
+     */
 
     return 0;
 }
 
-int mumble_server_init_ssl(mumble_server_t* server)
+int mumble_server_ssl_init(struct mumble_server_t* server)
 {
-    int result;
-
     /* Initialize SSL for the given server. */
-    server->ssl = SSL_new(server->ctx->ssl_ctx);
+    server->ssl = SSL_new(server->client->ssl_ctx);
 
     if (server->ssl == NULL)
     {
@@ -98,49 +123,33 @@ int mumble_server_init_ssl(mumble_server_t* server)
         return 1;
     }
 
-    if ((result = SSL_connect(server->ssl)) != -1)
-    {
-        LOG_ERROR("SSL Connection failed (err=%d ret=%d)", result,
-                  SSL_get_error(server->ssl, result));
-
-        return 1;
-    }
-
     return 0;
 }
 
-void mumble_server_destroy(mumble_server_t* server)
+void mumble_server_close(struct mumble_server_t* server)
 {
-    mumble_channel_t* channel, *channelptr;
-    mumble_user_t* user, *userptr;
-
     close(server->fd);
+    ev_io_stop(server->client->loop, &server->watcher);
+}
+
+void mumble_server_free(struct mumble_server_t* server)
+{
     SSL_free(server->ssl);
 
     free(server->wbuffer.ptr);
     free(server->rbuffer.ptr);
 
-    for (channel = server->channels; channel != NULL; channel = channelptr)
-    {
-        channelptr = channel->next;
-        mumble_channel_destroy(channel);
-    }
-
-    for (user = server->users; user != NULL; user = userptr)
-    {
-        userptr = user->next;
-        mumble_user_destroy(user);
-    }
-
-    ev_io_stop(server->ctx->loop, &server->watcher);
+    free(server);
 }
 
-int mumble_server_connect(mumble_server_t* server, struct mumble_t* context)
+int mumble_server_connect(struct mumble_server_t* server)
 {
     int result;
     socket_t fd;
     struct addrinfo* results, hints, *ptr;
     char port_buffer[6];
+
+    assert(server->client != NULL);
 
 #ifdef _WIN32
     if (_itoa_s(server->port, port_buffer, sizeof port_buffer, 10) != 0)
@@ -168,26 +177,31 @@ int mumble_server_connect(mumble_server_t* server, struct mumble_t* context)
         return 1;
     }
 
-    fd = mumble_server_create_socket();
-
     for (ptr = results; ptr != NULL; ptr = ptr->ai_next)
     {
-        if (connect(fd, (struct sockaddr*)ptr->ai_addr, ptr->ai_addrlen) != 0)
+        fd = mumble_server_create_socket();
+
+        if (fd == -1)
+            continue;
+
+        if (connect(fd, (struct sockaddr*)ptr->ai_addr, ptr->ai_addrlen) == -1)
         {
             if (errno == EINPROGRESS)
                 break; // Connection status is not yet determined.
         }
         else
         {
+            LOG_DEBUG("Server connected instantly");
             break;
         }
+
+        close(fd);
     }
 
     freeaddrinfo(results);
 
     if (ptr == NULL)
     {
-        close(fd);
         LOG_ERROR("Connection failed");
 
         return 1;
@@ -196,23 +210,100 @@ int mumble_server_connect(mumble_server_t* server, struct mumble_t* context)
     server->fd = fd;
     server->watcher.data = server;
 
-    if (mumble_server_init_ssl(server) != 0)
+    if (mumble_server_ssl_init(server) != 0)
     {
         close(fd);
         return 1;
     }
 
+    LOG_DEBUG("Starting watcher (host=%s fd=%d)", server->host, server->fd);
     ev_io_init(&server->watcher, mumble_server_handshake, fd,
                EV_READ | EV_WRITE);
-    ev_io_start(context->loop, &server->watcher);
+    ev_io_start(server->client->loop, &server->watcher);
 
     return result;
+}
+
+void mumble_server_handshake(struct ev_loop* loop, ev_io* w, int revents)
+{
+    struct mumble_server_t* srv = (struct mumble_server_t*)w->data;
+    int result = SSL_connect(srv->ssl);
+
+    (void)revents;
+
+    if (result == 1)
+    {
+        /* SSL handshake complete */
+        LOG_DEBUG("SSL handshake complete");
+
+        EV_IO_RESET(loop, w, EV_READ);
+        ev_set_cb(w, mumble_server_callback);
+
+        /* Announce that the connection has been established. */
+        mumble_server_connected(srv);
+    }
+    else if (result < 0)
+    {
+        int error = SSL_get_error(srv->ssl, result);
+
+        switch (error)
+        {
+            case SSL_ERROR_WANT_READ:
+            {
+                EV_IO_RESET(loop, w, EV_READ);
+
+                break;
+            }
+
+            case SSL_ERROR_WANT_WRITE:
+            {
+                EV_IO_RESET(loop, w, EV_WRITE);
+
+                break;
+            }
+
+            case SSL_ERROR_SYSCALL:
+            {
+                error = ERR_get_error();
+
+                if (!error)
+                {
+                    perror("SSL_ERROR_SYSCALL");
+                }
+                else
+                {
+                    LOG_DEBUG("SSL_ERROR_SYSCALL: %d", error);
+                }
+
+                mumble_server_close(srv);
+
+                break;
+            }
+
+            default:
+            {
+                LOG_ERROR(
+                    "Error during SSL handshake (server=%s err=%d ret=%d)",
+                    srv->host, error, result);
+
+                print_ssl_error(error);
+                mumble_server_close(srv);
+            }
+        }
+    }
+    else
+    {
+        LOG_ERROR("The TLS/SSL handshake was not successful but was shut down "
+                  "controlled and by the specifications of the TLS/SSL "
+                  "protocol. (err=%d)",
+                  SSL_get_error(srv->ssl, result));
+    }
 }
 
 void mumble_server_callback(EV_P_ ev_io* w, int revents)
 {
     int result;
-    mumble_server_t* srv = (mumble_server_t*)w->data;
+    struct mumble_server_t* srv = (struct mumble_server_t*)w->data;
 
     if (revents & EV_WRITE)
     {
@@ -248,14 +339,12 @@ void mumble_server_callback(EV_P_ ev_io* w, int revents)
         if (srv->wbuffer.size == 0)
         {
             /* If the buffer is empty, mark the io watcher. */
-            ev_io_stop(EV_A_ w);
-            ev_io_set(w, srv->fd, EV_READ);
-            ev_io_start(EV_A_ w);
+            EV_IO_RESET(loop, w, EV_READ);
         }
     }
     else /* Assume EV_READ. */
     {
-        mumble_t* ctx = srv->ctx;
+        struct mumble_t* ctx = srv->client;
         result = SSL_read(srv->ssl, ctx->buffer, sizeof(ctx->buffer));
 
         if (result > 0)
@@ -279,7 +368,7 @@ void mumble_server_callback(EV_P_ ev_io* w, int revents)
     }
 }
 
-int mumble_server_read_packet(mumble_server_t* server)
+int mumble_server_read_packet(struct mumble_server_t* server)
 {
     uint16_t type;
     uint32_t length;
@@ -295,7 +384,7 @@ int mumble_server_read_packet(mumble_server_t* server)
         {
             if (mumble_server_handle_packet(server, type, length))
             {
-                LOG_INFO("Handled packet (size = %zu type = %d)", packet_length,
+                LOG_INFO("Handled packet (size=%zu type=%d)", packet_length,
                          type);
 
                 /* Discard the data from the buffer. */
@@ -318,24 +407,23 @@ int mumble_server_read_packet(mumble_server_t* server)
  *
  * @returns the number of bytes written.
  */
-size_t mumble_server_write(mumble_server_t* server, char* data, size_t length)
+size_t mumble_server_write(struct mumble_server_t* server, char* data,
+                           size_t length)
 {
     size_t result;
 
     result = mumble_buffer_write(&server->wbuffer, (uint8_t*)data, length);
 
     ev_io* watcher = &server->watcher;
-    struct ev_loop* loop = server->ctx->loop;
+    struct ev_loop* loop = server->client->loop;
 
     // Mark the watcher that we want to read.
-    ev_io_stop(EV_A_ watcher);
-    ev_io_set(watcher, watcher->fd, EV_READ | EV_WRITE);
-    ev_io_start(EV_A_ watcher);
+    EV_IO_RESET(loop, watcher, EV_READ | EV_WRITE);
 
     return result;
 }
 
-int mumble_server_handle_packet(mumble_server_t* server, uint16_t type,
+int mumble_server_handle_packet(struct mumble_server_t* server, uint16_t type,
                                 uint32_t length)
 {
     mumble_handler_func_t handler;
@@ -355,58 +443,18 @@ int mumble_server_handle_packet(mumble_server_t* server, uint16_t type,
     return 1;
 }
 
-void mumble_server_handshake(EV_P_ ev_io* w, int revents)
-{
-    mumble_server_t* srv = (mumble_server_t*)w->data;
-    int result = SSL_do_handshake(srv->ssl);
-
-    if (result == 1)
-    {
-        /* SSL handshake complete */
-        LOG_DEBUG("SSL handshake complete");
-
-        /* Change the callback to the generic, non-handshake one. */
-        ev_io_stop(EV_A_ w);
-        ev_set_cb(w, mumble_server_callback);
-        ev_io_set(w, w->fd, EV_READ);
-        ev_io_start(EV_A_ w);
-
-        /* Announce that the connection has been established. */
-        mumble_server_connected(srv);
-    }
-    else
-    {
-        int err = SSL_get_error(srv->ssl, result);
-
-        if (err == SSL_ERROR_ZERO_RETURN)
-        {
-            LOG_WARN("Connection was closed during handshake");
-
-            mumble_server_disconnected(srv);
-        }
-        else if (err != SSL_ERROR_WANT_READ && err != SSL_ERROR_WANT_WRITE)
-        {
-            LOG_ERROR("Error during SSL handshake (err=%d ret=%d)", err,
-                      result);
-
-            print_ssl_error(err);
-            mumble_server_disconnected(srv);
-        }
-    }
-}
-
-void mumble_server_connected(mumble_server_t* server)
+void mumble_server_connected(struct mumble_server_t* server)
 {
     LOG_DEBUG("Connected to %s:%d", server->host, server->port);
 
     /* Start the ping watcher. */
-    ev_timer_start(server->ctx->loop, &server->ping_watcher);
+    // ev_timer_start(server->client->loop, &server->ping_watcher);
 
     mumble_server_send_version(server);
     mumble_server_send_authenticate(server, "libmumble", "");
 }
 
-void mumble_server_disconnected(mumble_server_t* server)
+void mumble_server_disconnected(struct mumble_server_t* server)
 {
     mumble_channel_t* channel, *channelptr;
     mumble_user_t* user, *userptr;
@@ -415,11 +463,11 @@ void mumble_server_disconnected(mumble_server_t* server)
 
     /* Stop the ping watcher. */
     LOG_INFO("Stopping ping watcher");
-    ev_timer_stop(server->ctx->loop, &server->ping_watcher);
+    //ev_timer_stop(server->client->loop, &server->ping_watcher);
 
     /* Stop the io watcher. */
     LOG_INFO("Stopping io watcher");
-    ev_io_stop(server->ctx->loop, &server->watcher);
+    ev_io_stop(server->client->loop, &server->watcher);
 
     for (channel = server->channels; channel != NULL; channel = channelptr)
     {
@@ -435,9 +483,11 @@ void mumble_server_disconnected(mumble_server_t* server)
 
     server->channels = NULL;
     server->users = NULL;
+
+    close(server->fd);
 }
 
-int mumble_server_send(mumble_server_t* server,
+int mumble_server_send(struct mumble_server_t* server,
                        mumble_packet_type_t packet_type, void* message)
 {
     size_t length;
@@ -476,24 +526,28 @@ int mumble_server_send(mumble_server_t* server,
 
 void mumble_server_ping(EV_P_ ev_timer* w, int revents)
 {
-    mumble_server_t* srv = (mumble_server_t*)w->data;
+    struct mumble_server_t* srv = (struct mumble_server_t*)w->data;
 
     if (mumble_server_send_ping(srv) != 1)
+    {
         LOG_ERROR("Could not send ping packet");
+    }
     else
+    {
         LOG_INFO("Sending ping packet");
+    }
 
-    ev_timer_again(srv->ctx->loop, w);
+    ev_timer_again(srv->client->loop, w);
 }
 
-int mumble_server_send_ping(mumble_server_t* server)
+int mumble_server_send_ping(struct mumble_server_t* server)
 {
     MumbleProto__Ping ping = MUMBLE_PROTO__PING__INIT;
 
     return mumble_server_send(server, MUMBLE_PACKET_PING, &ping);
 }
 
-int mumble_server_send_version(mumble_server_t* server)
+int mumble_server_send_version(struct mumble_server_t* server)
 {
     MumbleProto__Version version = MUMBLE_PROTO__VERSION__INIT;
 
@@ -508,7 +562,7 @@ int mumble_server_send_version(mumble_server_t* server)
     return mumble_server_send(server, MUMBLE_PACKET_VERSION, &version);
 }
 
-int mumble_server_send_authenticate(mumble_server_t* server,
+int mumble_server_send_authenticate(struct mumble_server_t* server,
                                     const char* username, const char* password)
 {
     MumbleProto__Authenticate authenticate = MUMBLE_PROTO__AUTHENTICATE__INIT;
@@ -519,4 +573,14 @@ int mumble_server_send_authenticate(mumble_server_t* server,
 
     return mumble_server_send(server, MUMBLE_PACKET_AUTHENTICATE,
                               &authenticate);
+}
+
+const char* mumble_server_get_host(const struct mumble_server_t* server)
+{
+    return server->host;
+}
+
+uint32_t mumble_server_get_port(const struct mumble_server_t* server)
+{
+    return server->port;
 }

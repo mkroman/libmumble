@@ -17,9 +17,8 @@
 */
 
 #include <mumble/mumble.h>
+#include <mumble/server.h>
 #include "log.h"
-
-static mumble_t g_mumble;
 
 int main(int argc, char** argv)
 {
@@ -36,10 +35,18 @@ int main(int argc, char** argv)
 
     LOG_INFO("libmumble v0.1");
 
-    mumble_init(&g_mumble, settings);
-    mumble_connect(&g_mumble, host, 64738);
-    mumble_run(&g_mumble);
-    mumble_destroy(&g_mumble);
+    struct mumble_t* client = mumble_new(settings);
+    struct mumble_server_t* server1 = mumble_server_new(host, 64738);
+    struct mumble_server_t* server2 = mumble_server_new("127.0.0.1", 64738);
+
+    if (mumble_connect(client, server1) != 0)
+        LOG_ERROR("Something went wrong.");
+
+    if (mumble_connect(client, server2) != 0)
+        LOG_ERROR("Something went wrong.");
+
+    mumble_run(client);
+    mumble_free(client);
 
     return 0;
 }

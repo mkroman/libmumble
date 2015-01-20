@@ -82,6 +82,7 @@ find_library (PROTOC_C_LIBRARY
 
 include_directories (${PROTOBUF_C_ROOT}/include)
 # }}}
+set (${PROJECT_NAME}_LIBS ${${PROJECT_NAME}_LIBS} pthread)
 
 add_library (${TARGET_NAME} STATIC
   ${libmumble_SOURCE}

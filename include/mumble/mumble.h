@@ -16,6 +16,9 @@
 * License along with this library.
 */
 
+#include <stdint.h>
+#include <openssl/ssl.h>
+
 /**
 * @file mumble.h
 * @author Mikkel Kroman
@@ -23,24 +26,22 @@
 * @brief Client-related functions for the mumble client context.
 */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #pragma once
 #ifndef MUMBLE_H
 #define MUMBLE_H
-
-#include <stdint.h>
-#include <openssl/ssl.h>
 
 #ifdef __unix__
 # define MUMBLE_API extern
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /**
  * Forward declarations.
  */
+struct mumble_t;
 struct mumble_server_t;
 
 /**
@@ -70,48 +71,25 @@ typedef struct mumble_settings_t
 } mumble_settings_t;
 
 /**
- * The mumble client structure, also referenced to as the `client context`.
- *
- * To initialize a new instance of this struct, use mumble_init()
+ * Create a new mumble client.
  */
-typedef struct mumble_t
-{
-    /**
-     * Number of servers attached to this context.
-     *
-     * This is useful for getting the number of servers in constant time.
-     */
-    int num_servers;
-    /** Pointer to an SSL context that will be inherited by new servers. */
-    SSL_CTX* ssl_ctx;
-    /** Pointer to the event loop this context operates on. */
-    struct ev_loop* loop;
-    /** Client settings for this context. */
-    mumble_settings_t settings;
-    /** Internal buffer that is used by the library. */
-    char buffer[512];
-    /** Linked list of servers attached to this client. */
-    struct mumble_server_t* servers;
-} mumble_t;
+MUMBLE_API struct mumble_t* mumble_new(mumble_settings_t settings);
+
+/**
+ * Close all connections, and free any memory used.
+ */
+MUMBLE_API void mumble_free(struct mumble_t* client);
+
 
 /**
  * Initialize a new mumble client context.
  *
- * @param context a pointer to allocated memory large enough to hold mumble_t.
+ * @param client   a pointer to allocated memory large enough to hold mumble_t.
  * @param settings a settings struct that defines how the client behaves.
  *
  * @returns zero on success, non-zero otherwise.
  */
-MUMBLE_API int mumble_init(mumble_t* context, mumble_settings_t settings);
-
-/**
- * Initialize the SSL context of a mumble context.
- *
- * @param[in] context a pointer to the mumble context.
- *
- * @returns zero on success, non-zero otherwise.
- */
-int mumble_init_ssl(mumble_t* context);
+MUMBLE_API int mumble_init(struct mumble_t* client);
 
 /**
  * Destroy the mumble context, freeing all associated resources.
@@ -120,7 +98,7 @@ int mumble_init_ssl(mumble_t* context);
  *
  * @returns zero on success, non-zero otherwise.
  */
-int mumble_destroy(mumble_t* context);
+// int mumble_destroy(mumble_t* context);
 
 /**
  * @brief Connect to a mumble server.
@@ -131,13 +109,14 @@ int mumble_destroy(mumble_t* context);
  *
  * @returns zero on success, non-zero otherwise.
  */
-int mumble_connect(mumble_t* context, const char* host, uint32_t port);
+int mumble_connect(struct mumble_t* client, struct mumble_server_t* server);
 
 /**
  * Send the client version message to the server.
  *
  */
-int mumble_send_version(mumble_t* context, struct mumble_server_t* server);
+int mumble_send_version(struct mumble_t* context,
+                        struct mumble_server_t* server);
 
 /**
  * Run the main event loop.
@@ -146,7 +125,7 @@ int mumble_send_version(mumble_t* context, struct mumble_server_t* server);
  *
  * @returns zero on success, non-zero otherwise.
  */
-int mumble_run(mumble_t* context);
+int mumble_run(struct mumble_t* context);
 
 #ifdef __cplusplus
 }
