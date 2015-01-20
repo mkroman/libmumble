@@ -20,129 +20,140 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+#include <mumble/mumble.h>
+#include <mumble/server.h>
+#include "iserver.h"
+#include "internal.h"
 #include "log.h"
-#include "mumble.h"
-#include "server.h"
 
-const mumble_version_t kMumbleClientVersion = { 1, 2, 8 };
+const mumble_version_t kMumbleClientVersion = {1, 2, 8};
 
-int mumble_init(mumble_t* context, mumble_settings_t settings)
+struct mumble_t* mumble_new(mumble_settings_t settings)
+{
+    struct mumble_t* client = (struct mumble_t*)malloc(sizeof(struct mumble_t));
+
+    if (!client)
+        return NULL;
+
+    client->settings = settings;
+
+    if (mumble_init(client) != 0)
+        return NULL;
+
+    return client;
+}
+
+int mumble_init(struct mumble_t* client)
 {
 #ifdef _WIN32
-	WSADATA wsaData;
-	int result = WSAStartup(MAKEWORD(2, 2), &wsaData);
+    WSADATA wsaData;
+    int result = WSAStartup(MAKEWORD(2, 2), &wsaData);
 
-	if (result != 0)
-	{
-		LOG_FATAL("Failed to initialize winsock");
+    if (result != 0)
+    {
+        LOG_FATAL("Failed to initialize winsock");
 
-		return 1;
-	}
+        return 1;
+    }
 #endif /* _WIN32 */
 
-	context->servers = 0;
-	context->num_servers = 0;
-	context->settings = settings;
+    client->servers = NULL;
+    client->num_servers = 0;
 
-	if (mumble_init_ssl(context) != 0)
-		return 1;
+    if (mumble_ssl_init(client) != 0)
+        return 1;
 
-	// Initialize a new event loop.
-	context->loop = ev_loop_new(0);
+    /* Initialize a new event loop. */
+    client->loop = ev_loop_new(0);
 
-	return 0;
+    return 0;
 }
 
-int mumble_init_ssl(mumble_t* context)
+int mumble_ssl_init(struct mumble_t* client)
 {
-	/* Initialize the SSL library. */
-	SSL_library_init();
-	SSL_load_error_strings();
+    /* Initialize the SSL library. */
+    SSL_library_init();
+    SSL_load_error_strings();
 
-	/* Initialize the SSL context. */
-	context->ssl_ctx = SSL_CTX_new(SSLv23_client_method());
+    /* Initialize the SSL context. */
+    client->ssl_ctx = SSL_CTX_new(SSLv23_client_method());
 
-	if (!context->ssl_ctx)
-	{
-		LOG_ERROR("SSL_CTX_new failed");
+    if (!client->ssl_ctx)
+    {
+        LOG_ERROR("SSL_CTX_new failed");
 
-		return 1;
-	}
+        return 1;
+    }
 
-	if (!SSL_CTX_use_certificate_chain_file(context->ssl_ctx,
-											context->settings.cert_file))
-	{
-		LOG_ERROR("SSL_CTX_use_certificate_chain_file failed (%s)\n",
-				  context->settings.cert_file);
+    if (!SSL_CTX_use_certificate_chain_file(client->ssl_ctx,
+                                            client->settings.cert_file))
+    {
+        LOG_ERROR("SSL_CTX_use_certificate_chain_file failed (%s)",
+                  client->settings.cert_file);
 
-		return 1;
-	}
+        return 1;
+    }
 
-	if (!SSL_CTX_use_PrivateKey_file(context->ssl_ctx,
-									 context->settings.key_file,
-									 SSL_FILETYPE_PEM))
-	{
-		LOG_ERROR("SSL_CTX_use_PrivateKey_file failed\n");
+    if (!SSL_CTX_use_PrivateKey_file(client->ssl_ctx, client->settings.key_file,
+                                     SSL_FILETYPE_PEM))
+    {
+        LOG_ERROR("SSL_CTX_use_PrivateKey_file failed");
 
-		return 1;
-	}
+        return 1;
+    }
 
-	if (!SSL_CTX_check_private_key(context->ssl_ctx))
-	{
-		LOG_ERROR("Invalid cert/key pair\n");
+    if (!SSL_CTX_check_private_key(client->ssl_ctx))
+    {
+        LOG_ERROR("Invalid cert/key pair");
 
-		return 1;
-	}
-	
-	return 0;
+        return 1;
+    }
+
+    return 0;
 }
 
-int mumble_destroy(mumble_t* context)
+void mumble_free(struct mumble_t* client)
 {
-	// Free up server resources.
-	for (struct mumble_server_t* srv = context->servers;
-		 srv != NULL; srv = srv->next)
-	{
-		mumble_server_destroy(srv);
-	}
+    struct mumble_server_t* ptr, *next;
+    for (ptr = client->servers; ptr != NULL; ptr = next)
+    {
+        next = ptr->next;
+        mumble_server_free(ptr);
+    }
 
-	// Free SSL resources.
-	SSL_CTX_free(context->ssl_ctx);
+    /* Free SSL resources. */
+    SSL_CTX_free(client->ssl_ctx);
 
-	// Free event resources.
-	if (context->loop)
-		ev_loop_destroy(context->loop);
+    /* Close any open connections and stop the event loop. */
+    if (client->loop)
+        ev_loop_destroy(client->loop);
 
-	return 0;
+    free(client);
 }
 
-int mumble_connect(mumble_t* context, const char* host, uint32_t port)
+int mumble_connect(struct mumble_t* client, struct mumble_server_t* server)
 {
-	mumble_server_t* srv = (mumble_server_t*)malloc(sizeof(mumble_server_t));
+    if (!client || !server)
+        return 1;
 
-	if (mumble_server_init(context, srv) != 0)
-		return 1;
+    if (client->servers)
+        server->next = client->servers;
+    else
+        server->next = NULL;
 
-	srv->host = host;
-	srv->port = port;
+    client->num_servers++;
+    client->servers = server;
+    server->client = client;
 
-	if (context->servers)
-		srv->next = context->servers;
-	else
-		srv->next = NULL;
+    if (mumble_server_connect(server) != 0)
+        return 1;
 
-	context->servers = srv;
-	context->num_servers++;
-
-	if (mumble_server_connect(srv, context) != 0)
-		return 1;
-
-	return 0;
+    return 0;
 }
 
-int mumble_run(mumble_t* context)
+int mumble_run(struct mumble_t* client)
 {
-	ev_loop(context->loop, 0);
+    ev_loop(client->loop, 0);
 
-	return 0;
+    return 0;
 }

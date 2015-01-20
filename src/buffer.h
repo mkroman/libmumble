@@ -40,7 +40,7 @@ static const size_t kMumbleBufferSize = 1024 * 8;
  */
 static const size_t kMumbleBufferSizeCap = 1024 * 1024 * 8;
 
-/** 
+/**
  * The mumble buffer structure.
  *
  * This is used for keeping track of the buffers size, where the memory is
@@ -48,10 +48,14 @@ static const size_t kMumbleBufferSizeCap = 1024 * 1024 * 8;
  */
 typedef struct mumble_buffer_t
 {
-	uint8_t* ptr; /**< Pointer to allocated memory. */
-	size_t capacity; /**< The capacity (size) of the allocated memory. */
-	size_t size; /**< The number of bytes that is actively used of the allocated memory. */
-	size_t pos; /**< The current position where we will write to. */
+    /** Pointer to allocated memory. */
+    uint8_t* ptr;
+    /** The capacity of the allocated memory, in number of bytes. */
+    size_t capacity;
+    /** The number of bytes that is currently used for storing data. */
+    size_t size;
+    /** The current write position. */
+    size_t pos;
 } mumble_buffer_t;
 
 /**
@@ -73,7 +77,7 @@ int mumble_buffer_init(mumble_buffer_t* buffer);
  * @returns the number of bytes written.
  */
 size_t mumble_buffer_write(mumble_buffer_t* buffer, const uint8_t* data,
-						   size_t size);
+                           size_t size);
 
 /**
  * @brief Read data from the buffer into the `output` buffer.
@@ -88,7 +92,7 @@ size_t mumble_buffer_write(mumble_buffer_t* buffer, const uint8_t* data,
  * @returns the number of bytes read.
  */
 size_t mumble_buffer_read(mumble_buffer_t* buffer, uint8_t* output,
-						  size_t size);
+                          size_t size);
 
 /**
  * Resize the buffer.

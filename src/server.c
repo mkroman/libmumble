@@ -5,308 +5,406 @@
 #include <assert.h>
 #include <openssl/err.h>
 
-#include "log.h"
-#include "mumble.h"
-#include "server.h"
-#include "buffer.h"
+#include <mumble/mumble.h>
+#include <mumble/server.h>
+#include <mumble/channel.h>
+#include <mumble/user.h>
+
+#include "Mumble.pb-c.h"
 #include "protocol.h"
 #include "packets.h"
-#include "channel.h"
-#include "user.h"
-#include "Mumble.pb-c.h"
+#include "buffer.h"
+#include "iserver.h"
+#include "internal.h"
+#include "log.h"
+
+#define EV_IO_RESET(x, y, z)                                                   \
+    do                                                                         \
+    {                                                                          \
+        ev_io_stop((x), (y));                                                  \
+        ev_io_set((y), (y)->fd, (z));                                          \
+        ev_io_start((x), (y));                                                 \
+    } while (0)
+
+/**
+ * The mumble message header length.
+ */
+static const size_t kMumbleHeaderSize = (sizeof(uint16_t) + sizeof(uint32_t));
+
+/**
+ * The client name to be sent in the version message.
+ */
+static const char* kMumbleClientName =
+    "libmumble (github.com/mkroman/libmumble)";
 
 static int setnonblock(socket_t fd)
 {
 #ifdef __unix__
-	int flags = fcntl(fd, F_GETFL);
+    int flags = fcntl(fd, F_GETFL);
 
-	flags |= O_NONBLOCK;
+    flags |= O_NONBLOCK;
 
-	return fcntl(fd, F_SETFL, flags);
+    return fcntl(fd, F_SETFL, flags);
 #endif /* __unix__ */
 }
 
 static void print_ssl_error(unsigned long e)
 {
-	char buffer[120];
+    char buffer[120];
 
-	ERR_error_string_n(e, buffer, sizeof buffer);
-	fputs(buffer, stderr);
+    ERR_error_string_n(e, buffer, sizeof buffer);
+    fputs(buffer, stderr);
 }
 
 socket_t mumble_server_create_socket()
 {
-	socket_t fd;
+    socket_t fd;
 
-	fd = socket(PF_INET, SOCK_STREAM, 0);
+    fd = socket(PF_INET, SOCK_STREAM, 0);
 
-	if (fd < 0)
-	{
-		LOG_ERROR("Socket creation failed");
+    if (fd < 0)
+    {
+        LOG_ERROR("Socket creation failed");
 
-		return -1;
-	}
-	
-	if (setnonblock(fd) != 0)
-	{
-		LOG_ERROR("Could not make file descriptor non-blocking");
+        return -1;
+    }
 
-		return -1;
-	}
+    if (setnonblock(fd) != 0)
+    {
+        LOG_ERROR("Could not make file descriptor non-blocking");
 
-	return fd;
+        return -1;
+    }
+
+    return fd;
 }
 
-int mumble_server_init(mumble_t* context, mumble_server_t* server)
+struct mumble_server_t* mumble_server_new(const char* host, uint32_t port)
 {
-	if (!server)
-		return 1;
+    struct mumble_server_t* server =
+        (struct mumble_server_t*)malloc(sizeof(struct mumble_server_t));
 
-	server->host = NULL;
-	server->ctx = context;
-	server->users = NULL;
-	server->channels = NULL;
-	server->welcome_text = NULL;
-	mumble_buffer_init(&server->wbuffer);
-	mumble_buffer_init(&server->rbuffer);
+    if (!server)
+        return NULL;
 
-	ev_init(&server->ping_watcher, mumble_server_ping);
-	server->ping_watcher.repeat = 5;
-	server->ping_watcher.data = server;
+    mumble_server_init(server);
+    server->host = host;
+    server->port = port;
 
-	return 0;
+    return server;
 }
 
-int mumble_server_init_ssl(mumble_server_t* server)
+int mumble_server_init(struct mumble_server_t* server)
 {
-	int result;
+    if (!server)
+        return 1;
 
-	/* Initialize SSL for the given server. */
-	server->ssl = SSL_new(server->ctx->ssl_ctx);
+    server->users = NULL;
+    server->client = NULL;
+    server->channels = NULL;
+    server->welcome_text = NULL;
+    mumble_buffer_init(&server->wbuffer);
+    mumble_buffer_init(&server->rbuffer);
 
-	if (server->ssl == NULL)
-	{
-		LOG_ERROR("Could not create SSL object");
+    ev_init(&server->ping_timer, mumble_server_ping);
+    server->ping_timer.repeat = 5;
+    server->ping_timer.data = server;
 
-		return 1;
-	}
-
-	if (!SSL_set_fd(server->ssl, server->fd))
-	{
-		LOG_ERROR("Could not set file descriptor on SSL object");
-
-		return 1;
-	}
-
-	if ((result = SSL_connect(server->ssl)) != -1)
-	{
-		LOG_ERROR("SSL Connection failed (err=%d ret=%d)", result, 
-				  SSL_get_error(server->ssl, result));
-
-		return 1;
-	}
-
-	return 0;
+    return 0;
 }
 
-void mumble_server_destroy(mumble_server_t* server)
+int mumble_server_ssl_init(struct mumble_server_t* server)
 {
-	mumble_channel_t* channel, *channelptr;
-	mumble_user_t* user, *userptr;
+    /* Initialize SSL for the given server. */
+    server->ssl = SSL_new(server->client->ssl_ctx);
 
-	close(server->fd);
-	SSL_free(server->ssl);
+    if (server->ssl == NULL)
+    {
+        LOG_ERROR("Could not create SSL object");
 
-	free(server->wbuffer.ptr);
-	free(server->rbuffer.ptr);
+        return 1;
+    }
 
-	for (channel = server->channels; channel != NULL; channel = channelptr)
-	{
-		channelptr = channel->next;
-		mumble_channel_destroy(channel);
-	}
+    if (!SSL_set_fd(server->ssl, server->fd))
+    {
+        LOG_ERROR("Could not set file descriptor on SSL object");
 
-	for (user = server->users; user != NULL; user = userptr)
-	{
-		userptr = user->next;
-		mumble_user_destroy(user);
-	}
+        return 1;
+    }
 
-	ev_io_stop(server->ctx->loop, &server->watcher);
+    return 0;
 }
 
-int mumble_server_connect(mumble_server_t* server, struct mumble_t* context)
+void mumble_server_close(struct mumble_server_t* server)
 {
-	int result;
-	socket_t fd;
-	struct addrinfo *results, hints, *ptr;
-	char port_buffer[6];
+    close(server->fd);
+    ev_io_stop(server->client->loop, &server->watcher);
+}
+
+void mumble_server_free(struct mumble_server_t* server)
+{
+    SSL_free(server->ssl);
+
+    free(server->wbuffer.ptr);
+    free(server->rbuffer.ptr);
+    free(server->welcome_text);
+    free(server);
+}
+
+int mumble_server_connect(struct mumble_server_t* server)
+{
+    int result;
+    socket_t fd;
+    struct addrinfo* results, hints, *ptr;
+    char port_buffer[6];
+
+    assert(server->client != NULL);
 
 #ifdef _WIN32
-	if (_itoa_s(server->port, port_buffer, sizeof port_buffer, 10) != 0)
+    if (_itoa_s(server->port, port_buffer, sizeof port_buffer, 10) != 0)
 #else /* _WIN32 */
-	if (snprintf(port_buffer, sizeof port_buffer, "%u", server->port) < 0)
+    if (snprintf(port_buffer, sizeof port_buffer, "%u", server->port) < 0)
 #endif
-	{
-		LOG_ERROR("Could not convert port to number");
+    {
+        LOG_ERROR("Could not convert port to number");
 
-		return 1;
-	}
+        return 1;
+    }
 
-	memset(&hints, 0, sizeof hints);
-	hints.ai_flags = 0;
-	hints.ai_family = AF_UNSPEC;
-	hints.ai_protocol = IPPROTO_TCP;
-	hints.ai_socktype = SOCK_STREAM;
+    memset(&hints, 0, sizeof hints);
+    hints.ai_flags = 0;
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_protocol = IPPROTO_TCP;
+    hints.ai_socktype = SOCK_STREAM;
 
-	result = getaddrinfo(server->host, port_buffer, &hints, &results);
+    result = getaddrinfo(server->host, port_buffer, &hints, &results);
 
-	if (result != 0)
-	{
-		LOG_ERROR("Could not resolve remote host: %s", gai_strerror(result));
+    if (result != 0)
+    {
+        LOG_ERROR("Could not resolve remote host: %s", gai_strerror(result));
 
-		return 1;
-	}
+        return 1;
+    }
 
-	fd = mumble_server_create_socket();
+    for (ptr = results; ptr != NULL; ptr = ptr->ai_next)
+    {
+        fd = mumble_server_create_socket();
 
-	for (ptr = results; ptr != NULL; ptr = ptr->ai_next)
-	{
-		if (connect(fd, (struct sockaddr*)ptr->ai_addr, ptr->ai_addrlen) != 0)
-		{
-			if (errno == EINPROGRESS)
-				break; // Connection status is not yet determined.
-		}
-		else
-		{
-			break;
-		}
-	}
+        if (fd == -1)
+            continue;
 
-	freeaddrinfo(results);
+        if (connect(fd, (struct sockaddr*)ptr->ai_addr, ptr->ai_addrlen) == -1)
+        {
+            if (errno == EINPROGRESS)
+                break; // Connection status is not yet determined.
+        }
+        else
+        {
+            LOG_DEBUG("Server connected instantly");
+            break;
+        }
 
-	if (ptr == NULL)
-	{
-		close(fd);
-		LOG_ERROR("Connection failed");
+        close(fd);
+    }
 
-		return 1;
-	}
+    freeaddrinfo(results);
 
-	server->fd = fd;
-	server->watcher.data = server;
+    if (ptr == NULL)
+    {
+        LOG_ERROR("Connection failed");
 
-	if (mumble_server_init_ssl(server) != 0)
-	{
-		close(fd);
-		return 1;
-	}
+        return 1;
+    }
 
-	ev_io_init(&server->watcher, mumble_server_handshake, fd,
-			   EV_READ | EV_WRITE);
-	ev_io_start(context->loop, &server->watcher);
+    server->fd = fd;
+    server->watcher.data = server;
 
-	return result;
+    if (mumble_server_ssl_init(server) != 0)
+    {
+        close(fd);
+        return 1;
+    }
+
+    LOG_DEBUG("Starting watcher (host=%s fd=%d)", server->host, server->fd);
+    ev_io_init(&server->watcher, mumble_server_handshake, fd,
+               EV_READ | EV_WRITE);
+    ev_io_start(server->client->loop, &server->watcher);
+
+    return result;
 }
 
-void mumble_server_callback(EV_P_ ev_io *w, int revents)
+void mumble_server_handshake(struct ev_loop* loop, ev_io* w, int revents)
 {
-	int result;
-	mumble_server_t* srv = (mumble_server_t*)w->data;
+    struct mumble_server_t* srv = (struct mumble_server_t*)w->data;
+    int result = SSL_connect(srv->ssl);
 
-	if (revents & EV_WRITE)
-	{
-		/* Write any pending data. */
-		size_t sent;
-		size_t buffer_size = srv->wbuffer.size;
+    (void)revents;
 
-		assert(buffer_size > 0);
-		sent = SSL_write(srv->ssl, srv->wbuffer.ptr, buffer_size);
-		assert(sent > 0);
+    if (result == 1)
+    {
+        /* SSL handshake complete */
+        LOG_DEBUG("SSL handshake complete");
 
-		if (sent > 0)
-		{
-			LOG_INFO("Sent %zu bytes", sent);
-			mumble_buffer_read(&srv->wbuffer, NULL, sent);
-		}
-		else
-		{
-			int err = SSL_get_error(srv->ssl, sent);
+        EV_IO_RESET(loop, w, EV_READ);
+        ev_set_cb(w, mumble_server_callback);
 
-			if (err == SSL_ERROR_ZERO_RETURN)
-			{
-				/* The connection was closed. */
-				mumble_server_disconnected(srv);
-			}
-			else
-			{
-				LOG_INFO("Could not read from SSL object (err=%d ret=%zu)", err,
-						 sent);
-			}
-		}
+        /* Announce that the connection has been established. */
+        mumble_server_connected(srv);
+    }
+    else if (result < 0)
+    {
+        int error = SSL_get_error(srv->ssl, result);
 
-		if (srv->wbuffer.size == 0)
-		{
-			/* If the buffer is empty, mark the io watcher. */
-			ev_io_stop(EV_A_ w);
-			ev_io_set(w, srv->fd, EV_READ);
-			ev_io_start(EV_A_ w);
-		}
-	}
-	else /* Assume EV_READ. */
-	{
-		mumble_t* ctx = srv->ctx;
-		result = SSL_read(srv->ssl, ctx->buffer, sizeof(ctx->buffer));
+        switch (error)
+        {
+            case SSL_ERROR_WANT_READ:
+            {
+                EV_IO_RESET(loop, w, EV_READ);
 
-		if (result > 0)
-		{
-			LOG_INFO("Received %d bytes", result);
-			mumble_buffer_write(&srv->rbuffer, (uint8_t*)ctx->buffer, result);
+                break;
+            }
 
-			if (srv->rbuffer.size > kMumbleHeaderSize)
-				while (mumble_server_read_packet(srv))
-					;;
+            case SSL_ERROR_WANT_WRITE:
+            {
+                EV_IO_RESET(loop, w, EV_WRITE);
 
-		}
-		else if (result == 0)
-		{
-			mumble_server_disconnected(srv);
-		}
-		else
-		{
-			LOG_ERROR("Could not read from SSL object: %d", result);
-		}
-	}
+                break;
+            }
+
+            case SSL_ERROR_SYSCALL:
+            {
+                error = ERR_get_error();
+
+                if (!error)
+                {
+                    perror("SSL_ERROR_SYSCALL");
+                }
+                else
+                {
+                    LOG_DEBUG("SSL_ERROR_SYSCALL: %d", error);
+                }
+
+                mumble_server_close(srv);
+
+                break;
+            }
+
+            default:
+            {
+                LOG_ERROR(
+                    "Error during SSL handshake (server=%s err=%d ret=%d)",
+                    srv->host, error, result);
+
+                print_ssl_error(error);
+                mumble_server_close(srv);
+            }
+        }
+    }
+    else
+    {
+        LOG_ERROR("The TLS/SSL handshake was not successful but was shut down "
+                  "controlled and by the specifications of the TLS/SSL "
+                  "protocol. (err=%d)",
+                  SSL_get_error(srv->ssl, result));
+    }
 }
 
-int mumble_server_read_packet(mumble_server_t* server)
+void mumble_server_callback(EV_P_ ev_io* w, int revents)
 {
-	uint16_t type;
-	uint32_t length;
-	size_t packet_length;
+    int result;
+    struct mumble_server_t* srv = (struct mumble_server_t*)w->data;
 
-	if (server->rbuffer.size > kMumbleHeaderSize)
-	{
-		type = ntohs(*(uint16_t*)server->rbuffer.ptr);
-		length = ntohl(*(uint32_t*)(server->rbuffer.ptr + sizeof(uint16_t)));
-		packet_length = length + kMumbleHeaderSize;
+    if (revents & EV_WRITE)
+    {
+        /* Write any pending data. */
+        size_t sent;
+        size_t buffer_size = srv->wbuffer.size;
 
-		if (server->rbuffer.size >= packet_length)
-		{
-			if (mumble_server_handle_packet(server, type, length))
-			{
-				LOG_INFO("Handled packet (size = %zu type = %d)",
-						 packet_length, type);
+        assert(buffer_size > 0);
+        sent = SSL_write(srv->ssl, srv->wbuffer.ptr, buffer_size);
+        assert(sent > 0);
 
-				/* Discard the data from the buffer. */
-				mumble_buffer_read(&server->rbuffer, NULL, packet_length);
+        if (sent > 0)
+        {
+            LOG_INFO("Sent %zu bytes", sent);
+            mumble_buffer_read(&srv->wbuffer, NULL, sent);
+        }
+        else
+        {
+            int err = SSL_get_error(srv->ssl, sent);
 
-				return 1;
-			}
-		}
-	}
+            if (err == SSL_ERROR_ZERO_RETURN)
+            {
+                /* The connection was closed. */
+                mumble_server_disconnected(srv);
+            }
+            else
+            {
+                LOG_INFO("Could not read from SSL object (err=%d ret=%zu)", err,
+                         sent);
+            }
+        }
 
-	return 0;
+        if (srv->wbuffer.size == 0)
+        {
+            /* If the buffer is empty, mark the io watcher. */
+            EV_IO_RESET(loop, w, EV_READ);
+        }
+    }
+    else /* Assume EV_READ. */
+    {
+        struct mumble_t* ctx = srv->client;
+        result = SSL_read(srv->ssl, ctx->buffer, sizeof(ctx->buffer));
+
+        if (result > 0)
+        {
+            LOG_INFO("Received %d bytes", result);
+            mumble_buffer_write(&srv->rbuffer, (uint8_t*)ctx->buffer, result);
+
+            if (srv->rbuffer.size > kMumbleHeaderSize)
+                while (mumble_server_read_packet(srv))
+                    ;
+            ;
+        }
+        else if (result == 0)
+        {
+            mumble_server_disconnected(srv);
+        }
+        else
+        {
+            LOG_ERROR("Could not read from SSL object: %d", result);
+        }
+    }
+}
+
+int mumble_server_read_packet(struct mumble_server_t* server)
+{
+    uint16_t type;
+    uint32_t length;
+    size_t packet_length;
+
+    if (server->rbuffer.size > kMumbleHeaderSize)
+    {
+        type = ntohs(*(uint16_t*)server->rbuffer.ptr);
+        length = ntohl(*(uint32_t*)(server->rbuffer.ptr + sizeof(uint16_t)));
+        packet_length = length + kMumbleHeaderSize;
+
+        if (server->rbuffer.size >= packet_length)
+        {
+            if (mumble_server_handle_packet(server, type, length))
+            {
+                LOG_INFO("Handled packet (size=%zu type=%d)", packet_length,
+                         type);
+
+                /* Discard the data from the buffer. */
+                mumble_buffer_read(&server->rbuffer, NULL, packet_length);
+
+                return 1;
+            }
+        }
+    }
+
+    return 0;
 }
 
 /**
@@ -318,206 +416,180 @@ int mumble_server_read_packet(mumble_server_t* server)
  *
  * @returns the number of bytes written.
  */
-size_t mumble_server_write(mumble_server_t* server, char* data, size_t length)
+size_t mumble_server_write(struct mumble_server_t* server, char* data,
+                           size_t length)
 {
-	size_t result;
+    size_t result =
+        mumble_buffer_write(&server->wbuffer, (uint8_t*)data, length);
+    ev_io* watcher = &server->watcher;
+    struct ev_loop* loop = server->client->loop;
 
-	result = mumble_buffer_write(&server->wbuffer, (uint8_t*)data, length);
+    /* Modify the watchers event flags. */
+    EV_IO_RESET(loop, watcher, EV_READ | EV_WRITE);
 
-	ev_io* watcher = &server->watcher;
-	struct ev_loop* loop = server->ctx->loop;
-
-	// Mark the watcher that we want to read.
-	ev_io_stop(EV_A_ watcher);
-	ev_io_set(watcher, watcher->fd, EV_READ | EV_WRITE);
-	ev_io_start(EV_A_ watcher);
-
-	return result;
+    return result;
 }
 
-int mumble_server_handle_packet(mumble_server_t* server, uint16_t type,
-								  uint32_t length)
+int mumble_server_handle_packet(struct mumble_server_t* server, uint16_t type,
+                                uint32_t length)
 {
-	mumble_handler_func_t handler;
-	const uint8_t* body =
-		(const uint8_t*)server->rbuffer.ptr + kMumbleHeaderSize;
+    mumble_handler_func_t handler;
+    const uint8_t* body =
+        (const uint8_t*)server->rbuffer.ptr + kMumbleHeaderSize;
 
-	if (type >= MUMBLE_PACKET_MAX)
-	{
-		LOG_WARN("Received invalid packet type %d", type);
+    if (type >= MUMBLE_PACKET_MAX)
+    {
+        LOG_WARN("Received invalid packet type %d", type);
 
-		return 1;
-	}
+        return 1;
+    }
 
-	if ((handler = g_mumble_packet_handlers[type]) != NULL)
-		return handler(server, body, length);
+    if ((handler = g_mumble_packet_handlers[type]) != NULL)
+        return handler(server, body, length);
 
-	return 1;
+    return 1;
 }
 
-void mumble_server_handshake(EV_P_ ev_io *w, int revents)
+void mumble_server_connected(struct mumble_server_t* server)
 {
-	mumble_server_t* srv = (mumble_server_t*)w->data;
-	int result = SSL_do_handshake(srv->ssl);
+    LOG_DEBUG("Connected to %s:%d", server->host, server->port);
 
-	if (result == 1)
-	{
-		/* SSL handshake complete */
-		LOG_DEBUG("SSL handshake complete");
+    /* Start the ping timer. */
+    ev_timer_start(server->client->loop, &server->ping_timer);
 
-		/* Change the callback to the generic, non-handshake one. */
-		ev_io_stop(EV_A_ w);
-		ev_set_cb(w, mumble_server_callback);
-		ev_io_set(w, w->fd, EV_READ);
-		ev_io_start(EV_A_ w);
-
-		/* Announce that the connection has been established. */
-		mumble_server_connected(srv);
-	}
-	else
-	{
-		int err = SSL_get_error(srv->ssl, result);
-
-		if (err == SSL_ERROR_ZERO_RETURN)
-		{
-			LOG_WARN("Connection was closed during handshake");
-
-			mumble_server_disconnected(srv);
-		}
-		else if (err != SSL_ERROR_WANT_READ && err != SSL_ERROR_WANT_WRITE)
-		{
-			LOG_ERROR("Error during SSL handshake (err=%d ret=%d)",
-					  err, result);
-
-			print_ssl_error(err);
-			mumble_server_disconnected(srv);
-		}
-	}
+    mumble_server_send_version(server);
+    mumble_server_send_authenticate(server, "libmumble", "");
 }
 
-void mumble_server_connected(mumble_server_t* server)
+void mumble_server_disconnected(struct mumble_server_t* server)
 {
-	LOG_DEBUG("Connected to %s:%d", server->host, server->port);
+    mumble_channel_t* channel, *channelptr;
+    mumble_user_t* user, *userptr;
 
-	/* Start the ping watcher. */
-	ev_timer_start(server->ctx->loop, &server->ping_watcher);
+    LOG_DEBUG("Connection to %s:%d lost", server->host, server->port);
 
-	mumble_server_send_version(server);
-	mumble_server_send_authenticate(server, "libmumble", "");
+    /* Stop the ping timer. */
+    LOG_INFO("Stopping ping timer");
+    ev_timer_stop(server->client->loop, &server->ping_timer);
+
+    /* Stop the io watcher. */
+    LOG_INFO("Stopping io watcher");
+    ev_io_stop(server->client->loop, &server->watcher);
+
+    for (channel = server->channels; channel != NULL; channel = channelptr)
+    {
+        channelptr = channel->next;
+        mumble_channel_free(channel);
+    }
+
+    for (user = server->users; user != NULL; user = userptr)
+    {
+        userptr = user->next;
+        mumble_user_free(user);
+    }
+
+    server->channels = NULL;
+    server->users = NULL;
+
+    close(server->fd);
 }
 
-void mumble_server_disconnected(mumble_server_t* server)
+int mumble_server_send(struct mumble_server_t* server,
+                       mumble_packet_type_t packet_type, void* message)
 {
-	mumble_channel_t* channel, *channelptr;
-	mumble_user_t* user, *userptr;
+    size_t length;
+    size_t result;
+    uint8_t* body;
+    char* buffer;
 
-	LOG_DEBUG("Connection to %s:%d lost", server->host, server->port);
+    /* Get the packed size of the packet. */
+    length = mumble_packet_size_packed(packet_type, message);
 
-	/* Stop the ping watcher. */
-	LOG_INFO("Stopping ping watcher");
-	ev_timer_stop(server->ctx->loop, &server->ping_watcher);
+    /* Construct the packet header. */
+    buffer = (char*)malloc(kMumbleHeaderSize + length);
 
-	/* Stop the io watcher. */
-	LOG_INFO("Stopping io watcher");
-	ev_io_stop(server->ctx->loop, &server->watcher);
+    if (!buffer)
+        return 0;
 
-	for (channel = server->channels; channel != NULL; channel = channelptr)
-	{
-		channelptr = channel->next;
-		mumble_channel_destroy(channel);
-	}
+    body = (uint8_t*)(buffer + kMumbleHeaderSize);
 
-	for (user = server->users; user != NULL; user = userptr)
-	{
-		userptr = user->next;
-		mumble_user_destroy(user);
-	}
+    /* Write and pack the protobuf message. */
+    result = mumble_packet_proto_pack(packet_type, message, body);
 
-	server->channels = NULL;
-	server->users = NULL;
+    /* Write the packet header. */
+    *(uint16_t*)buffer = htons(packet_type);
+    *(uint32_t*)(buffer + sizeof(uint16_t)) = htonl(length);
+
+    result = mumble_server_write(server, buffer, (length + kMumbleHeaderSize));
+
+    /* Free the packet buffer. */
+    free(buffer);
+
+    if (result > 0)
+        return 1;
+
+    return 0;
 }
 
-int mumble_server_send(mumble_server_t* server,
-					   mumble_packet_type_t packet_type, void* message)
+void mumble_server_ping(struct ev_loop* loop, ev_timer* w, int revents)
 {
-	size_t length;
-	size_t result;
-	uint8_t* body;
-	char* buffer;
+    struct mumble_server_t* srv = (struct mumble_server_t*)w->data;
 
-	/* Get the packed size of the packet. */
-	length = mumble_packet_size_packed(packet_type, message);
+    (void)revents;
 
-	/* Construct the packet header. */
-	buffer = (char*)malloc(kMumbleHeaderSize + length);
+    if (mumble_server_send_ping(srv) != 1)
+    {
+        LOG_ERROR("Could not send ping packet");
+    }
+    else
+    {
+        LOG_INFO("Sending ping packet");
+    }
 
-	if (!buffer)
-		return 0;
-
-	body = (uint8_t*)(buffer + kMumbleHeaderSize);
-
-	/* Write and pack the protobuf message. */
-	result = mumble_packet_proto_pack(packet_type, message, body);
-
-	/* Write the packet header. */
-	*(uint16_t*)buffer = htons(packet_type);
-	*(uint32_t*)(buffer + sizeof(uint16_t)) = htonl(length);
-
-	result = mumble_server_write(server, buffer, (length + kMumbleHeaderSize));
-
-	/* Free the packet buffer. */
-	free(buffer);
-
-	if (result > 0)
-		return 1;
-
-	return 0;
+    ev_timer_again(loop, w);
 }
 
-void mumble_server_ping(EV_P_ ev_timer* w, int revents)
+int mumble_server_send_ping(struct mumble_server_t* server)
 {
-	mumble_server_t* srv = (mumble_server_t*)w->data;
+    MumbleProto__Ping ping = MUMBLE_PROTO__PING__INIT;
 
-	if (mumble_server_send_ping(srv) != 1)
-		LOG_ERROR("Could not send ping packet");
-	else
-		LOG_INFO("Sending ping packet");
-
-	ev_timer_again(srv->ctx->loop, w);
+    return mumble_server_send(server, MUMBLE_PACKET_PING, &ping);
 }
 
-int mumble_server_send_ping(mumble_server_t* server)
+int mumble_server_send_version(struct mumble_server_t* server)
 {
-	MumbleProto__Ping ping = MUMBLE_PROTO__PING__INIT;
+    MumbleProto__Version version = MUMBLE_PROTO__VERSION__INIT;
 
-	return mumble_server_send(server, MUMBLE_PACKET_PING, &ping);
+    version.version =
+        (kMumbleClientVersion.major << 16 | kMumbleClientVersion.minor << 8 |
+         kMumbleClientVersion.patch);
+    version.has_version = 1;
+    version.release = (char*)kMumbleClientName;
+    version.os = "X11";
+    version.os_version = "Linux";
+
+    return mumble_server_send(server, MUMBLE_PACKET_VERSION, &version);
 }
 
-int mumble_server_send_version(mumble_server_t* server)
+int mumble_server_send_authenticate(struct mumble_server_t* server,
+                                    const char* username, const char* password)
 {
-	MumbleProto__Version version = MUMBLE_PROTO__VERSION__INIT;
+    MumbleProto__Authenticate authenticate = MUMBLE_PROTO__AUTHENTICATE__INIT;
 
-	version.version = (kMumbleClientVersion.major << 16 |
-					   kMumbleClientVersion.minor << 8 |
-					   kMumbleClientVersion.patch);
-	version.has_version = 1;
-	version.release = "libmumble";
-	version.os = "X11";
-	version.os_version = "Linux";
+    authenticate.username = (char*)username;
+    authenticate.password = (char*)password;
+    authenticate.opus = authenticate.has_opus = 1;
 
-	return mumble_server_send(server, MUMBLE_PACKET_VERSION,
-							  &version);
+    return mumble_server_send(server, MUMBLE_PACKET_AUTHENTICATE,
+                              &authenticate);
 }
 
-int mumble_server_send_authenticate(mumble_server_t* server,
-									const char* username, const char* password)
+const char* mumble_server_get_host(const struct mumble_server_t* server)
 {
-	MumbleProto__Authenticate authenticate = MUMBLE_PROTO__AUTHENTICATE__INIT;
+    return server->host;
+}
 
-	authenticate.username = (char*)username;
-	authenticate.password = (char*)password;
-	authenticate.opus = authenticate.has_opus = 1;
-
-	return mumble_server_send(server, MUMBLE_PACKET_AUTHENTICATE,
-							  &authenticate);
+uint32_t mumble_server_get_port(const struct mumble_server_t* server)
+{
+    return server->port;
 }

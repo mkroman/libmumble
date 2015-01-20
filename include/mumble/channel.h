@@ -15,32 +15,40 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library.
  */
+
 /**
  * @file channel.h
  * @author Mikkel Kroman
  * @date 16 Jan 2015
  * @brief Channel functions and data structures.
  */
-#include <stdint.h>
 
 #pragma once
 #ifndef MUMBLE_CHANNEL_H
 #define MUMBLE_CHANNEL_H
 
+#include <stdint.h>
+
+#include <mumble/external.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef enum mumble_channel_flags_t
 {
-	MUMBLE_CHANNEL_TEMPORARY = (1 << 1)
+    MUMBLE_CHANNEL_TEMPORARY = (1 << 1)
 } mumble_channel_flags_t;
 
 typedef struct mumble_channel_t
 {
-	int id;
-	int parent;
-	char* name;
-	char* description;
-	int position;
-	mumble_channel_flags_t flags;
-	struct mumble_channel_t* next;
+    int id;
+    int parent;
+    char* name;
+    char* description;
+    int position;
+    mumble_channel_flags_t flags;
+    struct mumble_channel_t* next;
 } mumble_channel_t;
 
 /**
@@ -53,8 +61,14 @@ typedef struct mumble_channel_t
 mumble_channel_t* mumble_channel_init(mumble_channel_t* channel);
 
 /**
- * Destroy a mumble channel structure.
+ * Free all memory used by a channel struct.
+ *
+ * @param[in] channel a pointer to the channel.
  */
-void mumble_channel_destroy(mumble_channel_t* channel);
+MUMBLE_API void mumble_channel_free(mumble_channel_t* channel);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

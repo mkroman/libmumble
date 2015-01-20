@@ -1,11 +1,13 @@
 project (libmumble)
 cmake_minimum_required (VERSION 2.8)
 
-set (CMAKE_C_FLAGS ${CMAKE_C_FLAGS} "-std=gnu99 -Wall -Wextra")
+set (CMAKE_C_FLAGS ${CMAKE_C_FLAGS} "-std=gnu99 -Wall -Wextra -pedantic -Werror")
 set (CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 set (TARGET_NAME "mumble")
 
-include_directories ("${CMAKE_SOURCE_DIR}/include")
+set (CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fsanitize=address -fno-omit-frame-pointer -fno-optimize-sibling-calls")
+
+include_directories ("${CMAKE_SOURCE_DIR}/include" "${CMAKE_SOURCE_DIR}/src")
 
 # Run cmake with -DLOG_LEVEL=<n> to set the log level.
 if (LOG_LEVEL)
@@ -23,14 +25,14 @@ set (libmumble_SOURCE
   src/log.c)
 
 set (libmumble_HEADERS
-  include/mumble.h
-  include/server.h
-  include/buffer.h
-  include/protocol.h
-  include/packets.h
-  include/channel.h
-  include/user.h
-  include/log.h)
+  include/mumble/mumble.h
+  include/mumble/server.h
+  include/mumble/buffer.h
+  include/mumble/protocol.h
+  include/mumble/packets.h
+  include/mumble/channel.h
+  include/mumble/user.h
+  include/mumble/log.h)
 
 set (client_SOURCES
   src/client.c)
@@ -82,9 +84,10 @@ find_library (PROTOC_C_LIBRARY
 
 include_directories (${PROTOBUF_C_ROOT}/include)
 # }}}
+set (${PROJECT_NAME}_LIBS ${${PROJECT_NAME}_LIBS} pthread)
 
 add_library (${TARGET_NAME} STATIC
-  ${libmumble_SOURCE} ${libmumble_HEADERS}
+  ${libmumble_SOURCE}
   ${PROTO_FILES})
 
 add_executable (client ${client_SOURCES})
