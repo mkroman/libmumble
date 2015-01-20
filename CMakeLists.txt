@@ -1,7 +1,7 @@
 project (libmumble)
 cmake_minimum_required (VERSION 2.8)
 
-set (CMAKE_C_FLAGS ${CMAKE_C_FLAGS} "-std=gnu99 -Wall -Wextra")
+set (CMAKE_C_FLAGS ${CMAKE_C_FLAGS} "-std=gnu99 -Wall -Wextra -pedantic -Werror")
 set (CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 set (TARGET_NAME "mumble")
 

@@ -12,6 +12,7 @@
 int mumble_packet_handle_ping(struct mumble_server_t* srv, const uint8_t* body,
                               uint32_t length)
 {
+    (void)srv;
     MumbleProto__Ping* ping = mumble_proto__ping__unpack(NULL, length, body);
 
     LOG_DEBUG("Received ping packet");
@@ -24,6 +25,7 @@ int mumble_packet_handle_ping(struct mumble_server_t* srv, const uint8_t* body,
 int mumble_packet_handle_crypt_setup(struct mumble_server_t* srv,
                                      const uint8_t* body, uint32_t length)
 {
+    (void)srv;
     MumbleProto__CryptSetup* crypt_setup =
         mumble_proto__crypt_setup__unpack(NULL, length, body);
 
@@ -37,6 +39,7 @@ int mumble_packet_handle_crypt_setup(struct mumble_server_t* srv,
 int mumble_packet_handle_codec_version(struct mumble_server_t* srv,
                                        const uint8_t* body, uint32_t length)
 {
+    (void)srv;
     MumbleProto__CodecVersion* codec_version =
         mumble_proto__codec_version__unpack(NULL, length, body);
 
@@ -278,6 +281,7 @@ int mumble_packet_handle_version(struct mumble_server_t* srv,
 {
     MumbleProto__Version* version =
         mumble_proto__version__unpack(NULL, length, body);
+    (void)srv;
 
     LOG_DEBUG("Received version message: %s - %s (%s)", version->release,
               version->os, version->os_version);

@@ -30,16 +30,16 @@
 /*
  * Some simple macros to help with ANSI escape sequences.
  */
-#define ANSI_BOLD "\e[1m"
-#define ANSI_RESET "\e[0m"
-#define ANSI_BLACK "\e[30m"
-#define ANSI_RED "\e[31m"
-#define ANSI_GREEN "\e[32m"
-#define ANSI_YELLOW "\e[33m"
-#define ANSI_BLUE "\e[34m"
-#define ANSI_MAGENTA "\e[35m"
-#define ANSI_CYAN "\e[36m"
-#define ANSI_WHITE "\e[37m"
+#define ANSI_BOLD "\x1B[1m"
+#define ANSI_RESET "\x1B[0m"
+#define ANSI_BLACK "\x1B[30m"
+#define ANSI_RED "\x1B[31m"
+#define ANSI_GREEN "\x1B[32m"
+#define ANSI_YELLOW "\x1B[33m"
+#define ANSI_BLUE "\x1B[34m"
+#define ANSI_MAGENTA "\x1B[35m"
+#define ANSI_CYAN "\x1B[36m"
+#define ANSI_WHITE "\x1B[37m"
 
 /**
  * The log format.
@@ -67,35 +67,6 @@ typedef enum log_level_t
 } log_level_t;
 
 /**
- * Strings representing each debug level.
- */
-static const char* g_log_level_strings[] = {
-    "Fatal",   /* LOG_LEVEL_FATAL */
-    "Error",   /* LOG_LEVEL_ERROR */
-    "Warning", /* LOG_LEVEL_WARN */
-    "Debug",   /* LOG_LEVEL_DEBUG */
-    "Info",    /* LOG_LEVEL_INFO */
-    0
-};
-
-/**
- * ANSI colors for the different log levels.
- */
-static const char* g_log_level_colors[] = {
-    ANSI_RED,    /* LOG_LEVEL_FATAL */
-    ANSI_RED,    /* LOG_LEVEL_ERROR */
-    ANSI_YELLOW, /* LOG_LEVEL_WARN */
-    ANSI_WHITE,  /* LOG_LEVEL_DEBUG */
-    ANSI_BLUE,   /* LOG_LEVEL_INFO */
-    0
-};
-
-/**
- * The default log-level.
- */
-static const int kLogLevel = LOG_LEVEL;
-
-/**
  * Write a log message.
  *
  * The log format is:
@@ -116,41 +87,40 @@ void log_write(log_level_t level, const char* func, const char* file,
                unsigned long line, const char* format, ...);
 
 #define __FILENAME__                                                           \
-	(strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
+    (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 
-#define LOG_WRITE(level, format, ...)                                          \
+#define LOG_WRITE(level, ...)                                                  \
     do                                                                         \
     {                                                                          \
-        log_write(level, __FUNCTION__, __FILENAME__, __LINE__, format,         \
-                  ##__VA_ARGS__);                                              \
+        log_write(level, __FUNCTION__, __FILENAME__, __LINE__, __VA_ARGS__);   \
     } while (0)
 
 #if LOG_LEVEL >= 1
-#define LOG_FATAL(format, ...) LOG_WRITE(LOG_LEVEL_FATAL, format, ##__VA_ARGS__)
+#define LOG_FATAL(...) LOG_WRITE(LOG_LEVEL_FATAL, __VA_ARGS__)
 #else
 #define LOG_FATAL(...)
 #endif
 
 #if LOG_LEVEL >= 2
-#define LOG_ERROR(format, ...) LOG_WRITE(LOG_LEVEL_ERROR, format, ##__VA_ARGS__)
+#define LOG_ERROR(...) LOG_WRITE(LOG_LEVEL_ERROR, __VA_ARGS__)
 #else
 #define LOG_ERROR(...)
 #endif
 
 #if LOG_LEVEL >= 3
-#define LOG_WARN(format, ...) LOG_WRITE(LOG_LEVEL_WARN, format, ##__VA_ARGS__)
+#define LOG_WARN(...) LOG_WRITE(LOG_LEVEL_WARN, __VA_ARGS__)
 #else
 #define LOG_WARN(...)
 #endif
 
 #if LOG_LEVEL >= 4
-#define LOG_DEBUG(format, ...) LOG_WRITE(LOG_LEVEL_DEBUG, format, ##__VA_ARGS__)
+#define LOG_DEBUG(...) LOG_WRITE(LOG_LEVEL_DEBUG, __VA_ARGS__)
 #else
 #define LOG_DEBUG(...)
 #endif
 
 #if LOG_LEVEL >= 5
-#define LOG_INFO(format, ...) LOG_WRITE(LOG_LEVEL_INFO, format, ##__VA_ARGS__)
+#define LOG_INFO(...) LOG_WRITE(LOG_LEVEL_INFO, __VA_ARGS__)
 #else
 #define LOG_INFO(...)
 #endif

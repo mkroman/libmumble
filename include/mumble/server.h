@@ -51,17 +51,6 @@
 extern "C" {
 #endif
 
-/**
- * The mumble message header length.
- */
-static const size_t kMumbleHeaderSize = (sizeof(uint16_t) + sizeof(uint32_t));
-
-/**
- * The client name to be sent in the version message.
- */
-static const char* kMumbleClientName =
-    "libmumble (github.com/mkroman/libmumble)";
-
 /*
  * Forward declarations.
  */

@@ -26,6 +26,17 @@
         ev_io_start((x), (y));                                                 \
     } while (0)
 
+/**
+ * The mumble message header length.
+ */
+static const size_t kMumbleHeaderSize = (sizeof(uint16_t) + sizeof(uint32_t));
+
+/**
+ * The client name to be sent in the version message.
+ */
+static const char* kMumbleClientName =
+    "libmumble (github.com/mkroman/libmumble)";
+
 static int setnonblock(socket_t fd)
 {
 #ifdef __unix__
@@ -524,9 +535,11 @@ int mumble_server_send(struct mumble_server_t* server,
     return 0;
 }
 
-void mumble_server_ping(EV_P_ ev_timer* w, int revents)
+void mumble_server_ping(struct ev_loop* loop, ev_timer* w, int revents)
 {
     struct mumble_server_t* srv = (struct mumble_server_t*)w->data;
+
+    (void)revents;
 
     if (mumble_server_send_ping(srv) != 1)
     {
@@ -537,7 +550,7 @@ void mumble_server_ping(EV_P_ ev_timer* w, int revents)
         LOG_INFO("Sending ping packet");
     }
 
-    ev_timer_again(srv->client->loop, w);
+    ev_timer_again(loop, w);
 }
 
 int mumble_server_send_ping(struct mumble_server_t* server)
@@ -555,7 +568,7 @@ int mumble_server_send_version(struct mumble_server_t* server)
         (kMumbleClientVersion.major << 16 | kMumbleClientVersion.minor << 8 |
          kMumbleClientVersion.patch);
     version.has_version = 1;
-    version.release = "libmumble";
+    version.release = (char*)kMumbleClientName;
     version.os = "X11";
     version.os_version = "Linux";
 
