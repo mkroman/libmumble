@@ -62,7 +62,12 @@ int mumble_packet_handle_server_sync(struct mumble_server_t* srv,
         srv->max_bandwidth = server_sync->max_bandwidth;
 
     if (server_sync->welcome_text != NULL)
+    {
+        if (srv->welcome_text)
+            free(srv->welcome_text);
+
         srv->welcome_text = strdup(server_sync->welcome_text);
+    }
 
     if (server_sync->has_permissions)
         srv->permissions = server_sync->permissions;

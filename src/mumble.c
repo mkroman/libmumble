@@ -127,6 +127,8 @@ void mumble_free(struct mumble_t* client)
     /* Close any open connections and stop the event loop. */
     if (client->loop)
         ev_loop_destroy(client->loop);
+
+    free(client);
 }
 
 int mumble_connect(struct mumble_t* client, struct mumble_server_t* server)

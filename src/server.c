@@ -147,7 +147,7 @@ void mumble_server_free(struct mumble_server_t* server)
 
     free(server->wbuffer.ptr);
     free(server->rbuffer.ptr);
-
+    free(server->welcome_text);
     free(server);
 }
 

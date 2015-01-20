@@ -71,7 +71,7 @@ struct mumble_server_t
     /** The maximum bandwidth we're allowed to use. */
     int max_bandwidth;
     /** The servers welcome text. */
-    const char* welcome_text;
+    char* welcome_text;
     /** The servers permission flags. */
     uint64_t permissions;
     /** A pointer to a linked list with channels. */
