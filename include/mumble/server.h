@@ -70,6 +70,45 @@ MUMBLE_API struct mumble_server_t* mumble_server_new(const char* host,
 MUMBLE_API void mumble_server_free(struct mumble_server_t* server);
 
 /**
+ * Get a pointer to a user with the specified session id.
+ *
+ * The user id field is different from the session id field. If you want to
+ * retrieve a pointer to a user with a specific session id, use
+ * `mumble_server_get_user_by_session_id`.
+ *
+ * @param[in] server a pointer to the server.
+ * @param[in] id     the user id.
+ *
+ * @returns a const pointer to a user if found, NULL otherwise.
+ */
+MUMBLE_API const struct mumble_user_t*
+mumble_server_get_user_by_id(struct mumble_server_t* server, uint32_t id);
+
+/**
+ * Get a pointer to a user with the specified session id.
+ *
+ * @param[in] server     a pointer to the server.
+ * @param[in] session_id the session id.
+ *
+ * @returns a const pointer to a user if found, NULL otherwise.
+ */
+MUMBLE_API const struct mumble_user_t*
+mumble_server_get_user_by_session_id(struct mumble_server_t* server,
+                                     uint32_t session_id);
+
+/**
+ * Get a pointer to a user with the specified user name.
+ *
+ * @param[in] server a pointer to the server.
+ * @param[in] name   the user name.
+ *
+ * @returns a const pointer to a user if found, NULL otherwise.
+ */
+MUMBLE_API const struct mumble_user_t*
+mumble_server_get_user_by_name(struct mumble_server_t* server,
+                               const char* name);
+
+/**
  * Get the servers host or IP address.
  */
 MUMBLE_API const char*

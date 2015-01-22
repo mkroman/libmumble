@@ -65,7 +65,7 @@ struct mumble_t
  *
  * @returns zero on success, non-zero otherwise.
  */
-MUMBLE_API int mumble_init(struct mumble_t* client);
+int mumble_init(struct mumble_t* client);
 
 /**
  * Initialize the SSL context of a mumble context.

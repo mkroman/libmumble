@@ -56,9 +56,8 @@ typedef struct mumble_user_t
 {
     uint32_t id;
     uint32_t session;
-    uint32_t actor;
     char* name;
-    uint32_t channel_id;
+    uint32_t channel;
     char* comment;
     char* hash;
     mumble_user_flags_t flags;

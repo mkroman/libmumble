@@ -584,6 +584,52 @@ int mumble_server_send_authenticate(struct mumble_server_t* server,
                               &authenticate);
 }
 
+const struct mumble_user_t*
+mumble_server_get_user_by_id(struct mumble_server_t* server, uint32_t id)
+{
+    const struct mumble_user_t* user;
+
+    if (!server)
+        return NULL;
+
+    for (user = server->users; user != NULL; user = user->next)
+        if (user->id == id)
+            break;
+
+    return user;
+}
+
+const struct mumble_user_t*
+mumble_server_get_user_by_session_id(struct mumble_server_t* server,
+                                     uint32_t session_id)
+{
+    const struct mumble_user_t* user;
+
+    if (!server)
+        return NULL;
+
+    for (user = server->users; user != NULL; user = user->next)
+        if (user->session == session_id)
+            break;
+
+    return user;
+}
+
+const struct mumble_user_t*
+mumble_server_get_user_by_name(struct mumble_server_t* server, const char* name)
+{
+    const struct mumble_user_t* user;
+
+    if (!server || !name)
+        return NULL;
+
+    for (user = server->users; user != NULL; user = user->next)
+        if (user->name && strcmp(user->name, name) == 0)
+            break;
+
+    return user;
+}
+
 const char* mumble_server_get_host(const struct mumble_server_t* server)
 {
     return server->host;
