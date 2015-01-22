@@ -37,6 +37,10 @@ static const size_t kMumbleHeaderSize = (sizeof(uint16_t) + sizeof(uint32_t));
 static const char* kMumbleClientName =
     "libmumble (github.com/mkroman/libmumble)";
 
+#define MUMBLE_EMIT_CALLBACK(n, ...)                                           \
+    if (server->callbacks.n)                                                   \
+        server->callbacks.n(__VA_ARGS__);
+
 static int setnonblock(socket_t fd)
 {
 #ifdef __unix__
@@ -102,6 +106,7 @@ int mumble_server_init(struct mumble_server_t* server)
     server->users = NULL;
     server->client = NULL;
     server->channels = NULL;
+    server->callbacks = (struct mumble_callback_t)MUMBLE_CALLBACK_INIT;
     server->welcome_text = NULL;
     mumble_buffer_init(&server->wbuffer);
     mumble_buffer_init(&server->rbuffer);
@@ -199,10 +204,7 @@ int mumble_server_connect(struct mumble_server_t* server)
                 break; // Connection status is not yet determined.
         }
         else
-        {
-            LOG_DEBUG("Server connected instantly");
             break;
-        }
 
         close(fd);
     }
@@ -450,6 +452,15 @@ int mumble_server_handle_packet(struct mumble_server_t* server, uint16_t type,
     return 1;
 }
 
+void mumble_server_set_callbacks(struct mumble_server_t* server,
+                                 const struct mumble_callback_t* callbacks)
+{
+    if (!server)
+        return;
+
+    server->callbacks = *callbacks;
+}
+
 void mumble_server_connected(struct mumble_server_t* server)
 {
     LOG_DEBUG("Connected to %s:%d", server->host, server->port);
@@ -459,6 +470,8 @@ void mumble_server_connected(struct mumble_server_t* server)
 
     mumble_server_send_version(server);
     mumble_server_send_authenticate(server, "libmumble", "");
+
+    MUMBLE_EMIT_CALLBACK(on_connect, server);
 }
 
 void mumble_server_disconnected(struct mumble_server_t* server)
@@ -467,6 +480,8 @@ void mumble_server_disconnected(struct mumble_server_t* server)
     mumble_user_t* user, *userptr;
 
     LOG_DEBUG("Connection to %s:%d lost", server->host, server->port);
+
+    MUMBLE_EMIT_CALLBACK(on_disconnect, server);
 
     /* Stop the ping timer. */
     LOG_INFO("Stopping ping timer");

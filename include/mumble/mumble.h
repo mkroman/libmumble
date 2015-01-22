@@ -64,9 +64,9 @@ MUMBLE_API const mumble_version_t kMumbleClientVersion;
  */
 typedef struct mumble_settings_t
 {
-	/** Pointer to a path to the client private key. */
+    /** Pointer to a path to the client private key. */
     const char* key_file;
-	/** Pointer to a path to the client certificate. */
+    /** Pointer to a path to the client certificate. */
     const char* cert_file;
 } mumble_settings_t;
 

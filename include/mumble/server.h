@@ -52,14 +52,68 @@
 extern "C" {
 #endif
 
-/*
- * Forward declarations.
+/**
+ * @struct mumble_server_t
+ * Opaque pointer object for working with and manipulating servers using the
+ * public libmumble API.
+ *
+ * To create a new server instance, use `mumble_server_new`.
+ *
+ * Once this object has been created, you can pass it as an argument to
+ * `mumble_connect`.
  */
 struct mumble_server_t;
 
 /**
- * Instantiates a new server. Use this object with `mumble_connect` in order to
- * connect to a remote server.
+ * Initialization macro for callbacks structure.
+ */
+#define MUMBLE_CALLBACK_INIT \
+        { NULL, NULL }
+
+/**
+ * Generic callback function, taking a single opaque server pointer as argument.
+ */
+typedef int (*mumble_cb_server)(struct mumble_server_t*);
+
+/**
+ * Callback structure.
+ *
+ * To associate callbacks with a server, use the `mumble_server_set_callbacks`
+ * function.
+ *
+ * @see mumble_server_set_callbacks
+ */
+struct mumble_callback_t
+{
+   /**
+    * @brief Server connect callback.
+    *
+    * The `on_connect` function is called as soon as the SSL handshake is
+    * complete and the connection has been established.
+    *
+    * @param server an opaque pointer type to a server structure.
+    */
+    mumble_cb_server on_connect;    
+
+   /**
+    * @brief Server disconnect callback.
+    *
+    * The `on_disconnect` function is called when the connection was abruply
+    * closed.
+    *
+    * @param server an opaque pointer type to a server structure.
+    */
+    mumble_cb_server on_disconnect;
+};
+
+/**
+ * Instantiates a new server, with a given host and port.
+ *
+ * @params[in] host the remote host.
+ * @params[in] port the remote port.
+ *
+ * @returns an opaque pointer type pointing to a newly allocated server, or NULL
+ * if failure when trying to allocate memory.
  */
 MUMBLE_API struct mumble_server_t* mumble_server_new(const char* host,
                                                      uint32_t port);
@@ -70,24 +124,32 @@ MUMBLE_API struct mumble_server_t* mumble_server_new(const char* host,
 MUMBLE_API void mumble_server_free(struct mumble_server_t* server);
 
 /**
- * Get a pointer to a user with the specified session id.
- *
- * The user id field is different from the session id field. If you want to
- * retrieve a pointer to a user with a specific session id, use
- * `mumble_server_get_user_by_session_id`.
- *
- * @param[in] server a pointer to the server.
- * @param[in] id     the user id.
- *
- * @returns a const pointer to a user if found, NULL otherwise.
+ * Set the callback handlers for this server.
  */
-MUMBLE_API const struct mumble_user_t*
-mumble_server_get_user_by_id(struct mumble_server_t* server, uint32_t id);
+MUMBLE_API void
+mumble_server_set_callbacks(struct mumble_server_t* server,
+                            const struct mumble_callback_t* callbacks);
 
 /**
  * Get a pointer to a user with the specified session id.
  *
- * @param[in] server     a pointer to the server.
+ * Note that the user id field is different from the session id field.
+ *
+ * If you want to retrieve a pointer to a user with a specific session id, use
+ * `mumble_server_get_user_by_session_id`.
+ *
+ * @param[in] server  an opaque pointer type pointing to a server structure.
+ * @param[in] user_id the users id.
+ *
+ * @returns a const pointer to a user if found, NULL otherwise.
+ */
+MUMBLE_API const struct mumble_user_t*
+mumble_server_get_user_by_id(struct mumble_server_t* server, uint32_t user_id);
+
+/**
+ * Get a pointer to a user with the specified session id.
+ *
+ * @param[in] server     an opaque pointer type pointing to a server structure.
  * @param[in] session_id the session id.
  *
  * @returns a const pointer to a user if found, NULL otherwise.
@@ -99,8 +161,8 @@ mumble_server_get_user_by_session_id(struct mumble_server_t* server,
 /**
  * Get a pointer to a user with the specified user name.
  *
- * @param[in] server a pointer to the server.
- * @param[in] name   the user name.
+ * @param[in] server an opaque pointer type pointing to a server structure.
+ * @param[in] name   the users name.
  *
  * @returns a const pointer to a user if found, NULL otherwise.
  */
@@ -109,13 +171,21 @@ mumble_server_get_user_by_name(struct mumble_server_t* server,
                                const char* name);
 
 /**
- * Get the servers host or IP address.
+ * Get the remote servers host or IP-address.
+ *
+ * @param[in] server an opaque pointer type pointing to a server structure.
+ *
+ * @returns a pointer to a string with the server hostname or IP-address.
  */
 MUMBLE_API const char*
 mumble_server_get_host(const struct mumble_server_t* server);
 
 /**
- * Get the servers port.
+ * Get the remote servers port.
+ *
+ * @param[in] server an opaque pointer type pointing to a server structure.
+ *
+ * @returns the remote servers port number.
  */
 MUMBLE_API uint32_t
 mumble_server_get_port(const struct mumble_server_t* server);

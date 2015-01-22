@@ -20,6 +20,34 @@
 #include <mumble/server.h>
 #include "log.h"
 
+int server_on_connect(struct mumble_server_t* server)
+{
+    printf("Connected to %s!\n", mumble_server_get_host(server));
+
+    return 0;
+}
+
+int server_on_disconnect(struct mumble_server_t* server)
+{
+    printf("Disconnected from %s!\n", mumble_server_get_host(server));
+
+    return 0;
+}
+
+struct mumble_server_t* create_server(const char* host, uint32_t port)
+{
+    struct mumble_server_t* server = mumble_server_new(host, port);
+    struct mumble_callback_t callbacks = MUMBLE_CALLBACK_INIT;
+
+    callbacks.on_connect = server_on_connect;
+    callbacks.on_disconnect = server_on_disconnect;
+
+    if (server)
+        mumble_server_set_callbacks(server, &callbacks);
+
+    return server;
+}
+
 int main(int argc, char** argv)
 {
     static const char* kDefaultHost = "chronicle.nodes.uplink.io";
@@ -28,16 +56,18 @@ int main(int argc, char** argv)
     if (argc > 1)
         host = argv[1];
 
-    mumble_settings_t settings;
-
-    settings.key_file = "private.key";
-    settings.cert_file = "public.crt";
+    mumble_settings_t settings = {
+        .key_file = "private.key",
+        .cert_file = "public.crt"
+    };
 
     LOG_INFO("libmumble v0.1");
 
     struct mumble_t* client = mumble_new(settings);
-    struct mumble_server_t* server1 = mumble_server_new(host, 64738);
-    struct mumble_server_t* server2 = mumble_server_new("127.0.0.1", 64738);
+    struct mumble_server_t* server1 = create_server(host, 64738);
+    struct mumble_server_t* server2 = create_server("127.0.0.1", 64738);
+
+    LOG_INFO("Connecting to %s", mumble_server_get_host(server1));
 
     if (mumble_connect(client, server1) != 0)
         LOG_ERROR("Something went wrong.");

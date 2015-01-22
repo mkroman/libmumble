@@ -74,6 +74,8 @@ struct mumble_server_t
     char* welcome_text;
     /** The servers permission flags. */
     uint64_t permissions;
+    /** A pointer to a list of callback handlers. */
+    struct mumble_callback_t callbacks;
     /** A pointer to a linked list with channels. */
     struct mumble_channel_t* channels;
     /** A pointer to a linked list with users. */
