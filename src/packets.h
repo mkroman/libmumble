@@ -39,6 +39,7 @@
 MUMBLE_HANDLER_FUNC(version);
 MUMBLE_HANDLER_FUNC(ping);
 MUMBLE_HANDLER_FUNC(channel_state);
+MUMBLE_HANDLER_FUNC(text_message);
 MUMBLE_HANDLER_FUNC(user_state);
 MUMBLE_HANDLER_FUNC(crypt_setup);
 MUMBLE_HANDLER_FUNC(codec_version);
@@ -56,7 +57,7 @@ static mumble_handler_func_t g_mumble_packet_handlers[MUMBLE_PACKET_MAX] = {
     NULL,                               /* MUMBLE_PACKET_USER_REMOVE */
     mumble_packet_handle_user_state,    /* MUMBLE_PACKET_USER_STATE */
     NULL,                               /* MUMBLE_PACKET_BAN_LIST */
-    NULL,                               /* MUMBLE_PACKET_TEXT_MESSAGE */
+    mumble_packet_handle_text_message,  /* MUMBLE_PACKET_TEXT_MESSAGE */
     NULL,                               /* MUMBLE_PACKET_PERMISSION_DENIED */
     NULL,                               /* MUMBLE_PACKET_ACL */
     NULL,                               /* MUMBLE_PACKET_QUERY_USERS */

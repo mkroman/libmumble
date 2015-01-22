@@ -149,11 +149,11 @@ int mumble_packet_handle_channel_state(struct mumble_server_t* srv,
 
     return 1;
 }
-int mumble_packet_handle_user_state(struct mumble_server_t* srv,
+int mumble_packet_handle_user_state(struct mumble_server_t* server,
                                     const uint8_t* body, uint32_t length)
 {
     int new_user = 0;
-    mumble_user_t* user;
+    mumble_user_t* user, *actor = NULL;
     MumbleProto__UserState* user_state =
         mumble_proto__user_state__unpack(NULL, length, body);
 
@@ -164,7 +164,7 @@ int mumble_packet_handle_user_state(struct mumble_server_t* srv,
         return 1;
     }
 
-    for (user = srv->users; user != NULL; user = user->next)
+    for (user = server->users; user != NULL; user = user->next)
     {
         if (user->session == user_state->session)
             break;
@@ -175,8 +175,8 @@ int mumble_packet_handle_user_state(struct mumble_server_t* srv,
         /* Create a new user. */
         user = (mumble_user_t*)malloc(sizeof(mumble_user_t));
         mumble_user_init(user);
-        user->next = srv->users;
-        srv->users = user;
+        user->next = server->users;
+        server->users = user;
         new_user = 1;
     }
 
@@ -184,7 +184,11 @@ int mumble_packet_handle_user_state(struct mumble_server_t* srv,
         user->session = user_state->session;
 
     if (user_state->has_actor)
-        user->actor = user_state->actor;
+    {
+        for (actor = server->users; actor != NULL; actor = actor->next)
+            if (actor->session == user_state->actor)
+                break;
+    }
 
     if (user_state->name != NULL)
     {
@@ -199,11 +203,16 @@ int mumble_packet_handle_user_state(struct mumble_server_t* srv,
 
     if (user_state->has_channel_id)
     {
-        if (!new_user && user->channel_id != user_state->channel_id)
+        if (!new_user && user->channel != user_state->channel_id)
             LOG_DEBUG("User changed channel (channel %d -> channel %d)",
-                      user->channel_id, user_state->channel_id);
+                      user->channel, user_state->channel_id);
 
-        user->channel_id = user_state->channel_id;
+        if (actor && actor != user && (user->channel != user_state->channel_id))
+        {
+            LOG_DEBUG("%s was forcibly moved by %s", user->name, actor->name);
+        }
+
+        user->channel = user_state->channel_id;
     }
 
     if (user_state->has_mute)
@@ -271,12 +280,34 @@ int mumble_packet_handle_user_state(struct mumble_server_t* srv,
     }
 
     if (user_state->has_channel_id)
-        user->channel_id = user_state->channel_id;
+        user->channel = user_state->channel_id;
 
     LOG_DEBUG("Received user state (session=%d name='%s' channel=%d)",
-              user->session, user->name, user->channel_id);
+              user->session, user->name, user->channel);
 
     mumble_proto__user_state__free_unpacked(user_state, NULL);
+
+    return 1;
+}
+
+int mumble_packet_handle_text_message(struct mumble_server_t* server,
+                                      const uint8_t* body, uint32_t length)
+{
+    struct mumble_user_t* actor = NULL;
+    MumbleProto__TextMessage* text_message =
+        mumble_proto__text_message__unpack(NULL, length, body);
+
+    if (text_message->has_actor)
+    {
+        for (actor = server->users; actor != NULL; actor = actor->next)
+            if (actor->session == text_message->actor)
+                break;
+    }
+
+    LOG_DEBUG("< %s> %s", (actor != NULL ? actor->name : "(null)"),
+              text_message->message);
+
+    mumble_proto__text_message__free_unpacked(text_message, NULL);
 
     return 1;
 }
