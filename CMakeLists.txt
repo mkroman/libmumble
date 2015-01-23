@@ -60,7 +60,7 @@ endif ()
 
 # Set compiler-specific flags
 if (UNIX)
-  set (CMAKE_C_FLAGS ${CMAKE_C_FLAGS} "-std=gnu99 -Wall -Wextra -pedantic -Werror")
+  set (CMAKE_C_FLAGS ${CMAKE_C_FLAGS} "-std=gnu99 -Wall -Wextra -pedantic")
 
   if (CMAKE_BUILD_TYPE STREQUAL Release)
     if (CMAKE_C_COMPILER_ID STREQUAL Clang AND LIBMUMBLE_ENABLE_LTO)
